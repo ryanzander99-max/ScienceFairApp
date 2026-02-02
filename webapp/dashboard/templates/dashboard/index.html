@@ -1,0 +1,485 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM2.5 C.L.E.A.R Early Warning System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}">
+</head>
+<body>
+    <div class="app">
+        <!-- Nav -->
+        <nav class="nav">
+            <div class="nav-inner">
+                <div class="nav-brand">
+                    <span class="nav-title">PM2.5 C.L.E.A.R</span>
+                </div>
+                <div class="nav-tabs">
+                    <button class="tab tab-active" data-tab="dashboard">Dashboard</button>
+                    <button class="tab" data-tab="map">Live Map</button>
+                    <button class="tab" data-tab="research">Research</button>
+                    <button class="tab" data-tab="feedback">Feedback</button>
+                </div>
+                <div class="nav-pills">
+                    {% for city in cities %}
+                    <button class="pill{% if forloop.first %} pill-active{% endif %}" data-city="{{ city }}">{{ city }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+        </nav>
+
+        <!-- ============================================================ -->
+        <!-- TAB: Dashboard                                                -->
+        <!-- ============================================================ -->
+        <div id="tab-dashboard" class="tab-content tab-visible">
+            <!-- Alert Banner -->
+            <div class="banner-wrap">
+                <div id="banner" class="banner">
+                    <div class="banner-glow"></div>
+                    <div class="banner-content">
+                        <div id="banner-title" class="banner-city">TORONTO</div>
+                        <div id="banner-level" class="banner-status">Waiting for data</div>
+                        <div id="banner-health" class="banner-health"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progress-wrap" class="progress-wrap" style="display:none;">
+                <div class="progress-label" id="progress-label">Fetching live data...</div>
+                <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="actions">
+                <button id="btn-fetch" class="action-btn action-primary" onclick="fetchLive()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    Fetch Live Data
+                </button>
+                <button id="btn-demo" class="action-btn action-ghost" onclick="runDemo()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Run Demo
+                </button>
+                <div id="station-count" class="station-count"></div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-row" id="stats-row" style="display:none;">
+                <div class="stat-card">
+                    <div class="stat-label">Worst Predicted</div>
+                    <div class="stat-value" id="stat-worst">—</div>
+                    <div class="stat-unit">µg/m³</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Stations Reporting</div>
+                    <div class="stat-value" id="stat-reporting">—</div>
+                    <div class="stat-unit">of <span id="stat-total">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Earliest Warning</div>
+                    <div class="stat-value" id="stat-lead">—</div>
+                    <div class="stat-unit">lead time</div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-card">
+                <div class="table-head">
+                    <span class="th th-station">Station</span>
+                    <span class="th th-dist">Distance</span>
+                    <span class="th th-dir">Dir</span>
+                    <span class="th th-tier">Tier</span>
+                    <span class="th th-pm">PM2.5</span>
+                    <span class="th th-pred">Predicted</span>
+                    <span class="th th-level">Level</span>
+                    <span class="th th-lead">Lead Time</span>
+                </div>
+                <div id="table-body" class="table-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">📡</div>
+                        <div class="empty-text">Select a city and click <strong>Fetch Live Data</strong> or <strong>Run Demo</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="footer">
+                <div id="status" class="status">Ready</div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB: Live Map                                                 -->
+        <!-- ============================================================ -->
+        <div id="tab-map" class="tab-content">
+            <div class="map-controls">
+                <button id="map-btn-fetch" class="action-btn action-primary" onclick="mapFetchLive()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    Fetch Live Data
+                </button>
+                <button class="action-btn action-ghost" onclick="mapRunDemo()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Run Demo
+                </button>
+                <div id="map-status" class="station-count">Click fetch or demo to see station data on the map</div>
+            </div>
+            <div id="map-container" class="map-container"></div>
+            <div class="map-legend">
+                <span class="legend-title">Alert Levels:</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#A8D5A0"></span>Low</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#D2CC9A"></span>Moderate</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#F0BFA0"></span>High</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#E8988A"></span>Very High</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#E65C50"></span>Extreme</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Target City</span>
+                <span class="legend-item"><span class="legend-dot legend-dot-empty"></span>No Data</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB: Research                                                 -->
+        <!-- ============================================================ -->
+        <div id="tab-research" class="tab-content">
+            <div class="research">
+                <!-- Research nav -->
+                <div class="research-nav">
+                    <button class="rnav rnav-active" data-section="intro">Overview</button>
+                    <button class="rnav" data-section="purpose">Purpose</button>
+                    <button class="rnav" data-section="methodology">Methodology</button>
+                    <button class="rnav" data-section="results">Results</button>
+                    <button class="rnav" data-section="validation">Validation</button>
+                    <button class="rnav" data-section="alert">Alert System</button>
+                    <button class="rnav" data-section="conclusion">Conclusion</button>
+                </div>
+
+                <!-- Overview -->
+                <div id="sec-intro" class="research-section research-visible">
+                    <div class="research-card">
+                        <div class="research-badge">C.L.E.A.R. System</div>
+                        <h1 class="research-h1">Before the Sky Turns Orange</h1>
+                        <p class="research-subtitle">The C.L.E.A.R. System: Canadian Lead-time Early Air Response</p>
+                        <p class="research-authors">Hugo Bui &amp; Ryan Zander — University of Toronto Schools</p>
+                        <p class="research-period">Providing 6–48 Hours of Advance Warning for Wildfire Smoke</p>
+                    </div>
+                    <div class="research-card">
+                        <h2>Project Summary</h2>
+                        <p>C.L.E.A.R. is a wildfire PM2.5 early warning system for <strong>Toronto, Edmonton, Montréal, and Vancouver</strong> that repurposes existing NAPS air quality stations located 100–600+ km away to provide <strong>6–48+ hours of advance warning</strong> before dangerous smoke arrives.</p>
+                        <div class="key-stats">
+                            <div class="key-stat">
+                                <div class="key-stat-value">36M+</div>
+                                <div class="key-stat-label">Hourly Observations</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">218</div>
+                                <div class="key-stat-label">Stations Identified</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">4 Cities</div>
+                                <div class="key-stat-label">Covered</div>
+                            </div>
+                        </div>
+                        <div class="key-stats" style="margin-top:12px;">
+                            <div class="key-stat">
+                                <div class="key-stat-value">20 yrs</div>
+                                <div class="key-stat-label">Study Period (2003–2023)</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">97.9%</div>
+                                <div class="key-stat-label">Detection Rate</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">0%</div>
+                                <div class="key-stat-label">False Alarm Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purpose -->
+                <div id="sec-purpose" class="research-section">
+                    <div class="research-card">
+                        <h2>Research Question</h2>
+                        <blockquote class="research-quote">"Can hourly PM2.5 readings at distant monitoring stations predict a city's PM2.5 levels with enough lead time to issue meaningful public health warnings?"</blockquote>
+                    </div>
+                    <div class="research-card">
+                        <h2>Purpose</h2>
+                        <p>Develop an early warning system that uses <strong>existing NAPS and U.S. EPA monitoring infrastructure</strong> — stations located 100–600+ km upstream — to detect approaching wildfire smoke plumes and issue colour-coded health alerts <strong>6–48 hours in advance</strong>.</p>
+                        <p>The system targets four major Canadian cities: Toronto, Edmonton, Montréal, and Vancouver, covering diverse geographic and smoke exposure patterns.</p>
+                    </div>
+                </div>
+
+                <!-- Methodology -->
+                <div id="sec-methodology" class="research-section">
+                    <div class="research-card">
+                        <h2>Data Sources</h2>
+                        <div class="method-grid">
+                            <div class="method-item">
+                                <h3>NAPS Network (Canada)</h3>
+                                <p><strong>National Air Pollution Surveillance Program</strong></p>
+                                <p>Hourly PM2.5 measurements. 84% of stations concentrated in BC, AB, ON, and QC. Dense regional coverage enables upstream smoke detection.</p>
+                            </div>
+                            <div class="method-item">
+                                <h3>U.S. EPA AQS / AirNow</h3>
+                                <p><strong>Air Quality System &amp; AirNow</strong></p>
+                                <p>Daily PM2.5 data from U.S. border stations (NY, PA, VT, WA, OR). Critical for cities near the U.S. border.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="research-card">
+                        <h2>Analysis Method</h2>
+                        <ul class="method-list">
+                            <li><strong>Study period:</strong> 2003–2023, wildfire season (May–September)</li>
+                            <li><strong>Correlation analysis</strong> between each remote station and the target city's PM2.5</li>
+                            <li><strong>Regression model:</strong> PM2.5<sub>city</sub> = slope &times; PM2.5<sub>station</sub> + intercept</li>
+                            <li><strong>Station selection criteria:</strong> R &ge; 0.30, P &lt; 0.001, N &ge; 100 observations</li>
+                            <li><strong>Tier classification:</strong> Tier 1 (&gt;250 km, 12–48 hr lead) and Tier 2 (100–250 km, 6–18 hr lead)</li>
+                            <li><strong>AI validation:</strong> Claude, ChatGPT, Gemini, and Julius AI all produced mathematically equivalent regression results; hand-verified</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="sec-results" class="research-section">
+                    <div class="research-card">
+                        <h2>Historical Validation — Confusion Matrix</h2>
+                        <p>The system was validated against all historical smoke events (2003–2023):</p>
+                        <div class="research-table-wrap">
+                            <table class="research-table">
+                                <thead>
+                                    <tr>
+                                        <th>City</th>
+                                        <th>True Pos.</th>
+                                        <th>False Neg.</th>
+                                        <th>True Neg.</th>
+                                        <th>False Pos.</th>
+                                        <th>Detection</th>
+                                        <th>False Alarm</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Vancouver</td><td>14</td><td>0</td><td>10</td><td>0</td>
+                                        <td class="highlight-green">100%</td><td class="highlight-green">0%</td><td>Perfect</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Edmonton</td><td>9</td><td>1</td><td>5</td><td>0</td>
+                                        <td class="highlight-yellow">90%</td><td class="highlight-green">0%</td><td>1 Failure</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Toronto</td><td>10</td><td>0</td><td>10</td><td>0</td>
+                                        <td class="highlight-green">100%</td><td class="highlight-green">0%</td><td>Perfect</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Montréal</td><td>14</td><td>0</td><td>10</td><td>0</td>
+                                        <td class="highlight-green">100%</td><td class="highlight-green">0%</td><td>Perfect</td>
+                                    </tr>
+                                    <tr class="total-row">
+                                        <td><strong>Total</strong></td><td><strong>47</strong></td><td><strong>1</strong></td><td><strong>35</strong></td><td><strong>0</strong></td>
+                                        <td class="highlight-green"><strong>97.9%</strong></td><td class="highlight-green"><strong>0%</strong></td><td><strong>83 events</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top:12px;color:#a1a1aa;font-size:13px;">Edmonton's single missed event was due to a NNW monitoring gap — smoke arrived from an unmonitored direction.</p>
+                    </div>
+                    <div class="research-card">
+                        <h2>Real-World Example — Toronto, June 2023</h2>
+                        <p>During the catastrophic Quebec wildfire event:</p>
+                        <div class="research-table-wrap">
+                            <table class="research-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Station</th><th>Distance</th><th>PM2.5</th><th>Threshold</th><th>Alert</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>June 3</td><td>Parry Sound</td><td>187 km NNW</td>
+                                        <td><strong>196 µg/m³</strong></td><td>&gt;139.3</td>
+                                        <td><span class="badge" style="background:#E65C50;color:white">EXTREME</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>June 6</td><td>Cornwall</td><td>387 km ENE</td>
+                                        <td><strong>160 µg/m³</strong></td><td>&gt;99.3</td>
+                                        <td><span class="badge" style="background:#E8988A;color:white">VERY HIGH</span></td>
+                                    </tr>
+                                    <tr class="total-row">
+                                        <td>June 6</td><td>Toronto</td><td>—</td>
+                                        <td><strong>97 µg/m³</strong></td><td>(Actual)</td>
+                                        <td><span class="badge" style="background:#F0BFA0;color:black">HIGH</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation -->
+                <div id="sec-validation" class="research-section">
+                    <div class="research-card">
+                        <h2>Burn Area Analysis</h2>
+                        <p>Analysis of the Canadian National Fire Database shows <strong>statistically significant increases</strong> in national burn area over the study period. The 2023 season burned over <strong>18 million hectares</strong>, more than double any previous year.</p>
+                        <div class="key-stats">
+                            <div class="key-stat">
+                                <div class="key-stat-value">18M+ ha</div>
+                                <div class="key-stat-label">2023 Record Burn</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">2003–2023</div>
+                                <div class="key-stat-label">Analysis Period</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value">Significant</div>
+                                <div class="key-stat-label">Upward Trend</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="research-card">
+                        <h2>AI Platform Validation</h2>
+                        <p>Regression analyses were independently replicated across <strong>four AI platforms</strong> to ensure mathematical accuracy:</p>
+                        <div class="key-stats" style="grid-template-columns: repeat(4, 1fr);">
+                            <div class="key-stat">
+                                <div class="key-stat-value" style="font-size:16px;">Claude</div>
+                                <div class="key-stat-label">Anthropic</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value" style="font-size:16px;">ChatGPT</div>
+                                <div class="key-stat-label">OpenAI</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value" style="font-size:16px;">Gemini</div>
+                                <div class="key-stat-label">Google</div>
+                            </div>
+                            <div class="key-stat">
+                                <div class="key-stat-value" style="font-size:16px;">Julius AI</div>
+                                <div class="key-stat-label">Data Analysis</div>
+                            </div>
+                        </div>
+                        <p>All four platforms produced <strong>mathematically equivalent results</strong>, which were then hand-verified against raw data.</p>
+                    </div>
+                </div>
+
+                <!-- Alert System -->
+                <div id="sec-alert" class="research-section">
+                    <div class="research-card">
+                        <h2>C.L.E.A.R. Alert Levels</h2>
+                        <p>The system uses a five-tier alert scale based on predicted PM2.5 concentrations:</p>
+                        <div class="research-table-wrap">
+                            <table class="research-table alert-table">
+                                <thead>
+                                    <tr><th>Alert Level</th><th>PM2.5 Level</th><th>Public Health Action Plan</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="badge" style="background:#A8D5A0;color:black;font-size:12px;padding:5px 14px;">LOW</span></td>
+                                        <td>&lt; 20 µg/m³</td>
+                                        <td>No precautions needed.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge" style="background:#D2CC9A;color:black;font-size:12px;padding:5px 14px;">MODERATE</span></td>
+                                        <td>21–60 µg/m³</td>
+                                        <td>Sensitive groups (children/elderly) avoid strenuous activities.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge" style="background:#F0BFA0;color:black;font-size:12px;padding:5px 14px;">HIGH</span></td>
+                                        <td>61–80 µg/m³</td>
+                                        <td>Everyone should reduce physical exertion. N95 or KN95 mask. Keep doors and windows closed. HVAC to recirculate. Run HEPA filter.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge" style="background:#E8988A;color:white;font-size:12px;padding:5px 14px;">VERY HIGH</span></td>
+                                        <td>81–120 µg/m³</td>
+                                        <td>Avoid all outdoor activity. Keep hydrated.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="badge" style="background:#E65C50;color:white;font-size:12px;padding:5px 14px;">EXTREME</span></td>
+                                        <td>&gt; 120 µg/m³</td>
+                                        <td>Halt indoor pollution. No frying or sauteing. No vacuuming. No candles. No wood-burning stoves.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="research-card">
+                        <h2>How It Works</h2>
+                        <p>For each included station, the system uses a simple linear regression:</p>
+                        <div class="equation">PM2.5<sub>city</sub> = slope &times; PM2.5<sub>station</sub> + intercept</div>
+                        <p>Alert thresholds at each station are computed by inverting the formula:</p>
+                        <div class="equation">station threshold = (alert trigger &minus; intercept) &divide; slope</div>
+                        <p>When a station's live PM2.5 reading exceeds its computed threshold, the corresponding alert is triggered — providing advance warning based on the station's distance and tier classification.</p>
+                    </div>
+                </div>
+
+                <!-- Conclusion -->
+                <div id="sec-conclusion" class="research-section">
+                    <div class="research-card">
+                        <h2>Conclusion</h2>
+                        <div class="conclusion-grid">
+                            <div class="conclusion-item">
+                                <h3>Novel Contribution</h3>
+                                <p>First system to repurpose existing NAPS infrastructure specifically for wildfire smoke early warning across multiple Canadian cities.</p>
+                            </div>
+                            <div class="conclusion-item">
+                                <h3>Proven Reliability</h3>
+                                <p>97.9% detection rate (47/48 events) with 0% false alarms (35/35 non-events) across all four cities.</p>
+                            </div>
+                            <div class="conclusion-item">
+                                <h3>Actionable Results</h3>
+                                <p>Colour-coded alerts with specific health recommendations give the public clear guidance hours before smoke arrives.</p>
+                            </div>
+                            <div class="conclusion-item">
+                                <h3>Scalable Solution</h3>
+                                <p>The methodology can be extended to any city with nearby upstream monitoring stations.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="research-card">
+                        <h2>Future Work</h2>
+                        <ul class="method-list">
+                            <li><strong>Satellite integration</strong> for real-time smoke plume tracking</li>
+                            <li><strong>More cities</strong> added to the network</li>
+                            <li><strong>Live testing</strong> during upcoming wildfire seasons</li>
+                            <li><strong>Expanded NAPS coverage</strong> to address monitoring gaps (e.g., Edmonton NNW)</li>
+                            <li><strong>Wind direction/speed</strong> incorporation for improved predictions</li>
+                        </ul>
+                    </div>
+                    <div class="research-card">
+                        <h2>References</h2>
+                        <ul class="method-list ref-list">
+                            <li>Anthropic (2026). Claude AI Platform.</li>
+                            <li>Cruz, M. G. et al. (2019). Fire dynamics and behaviour.</li>
+                            <li>Environment and Climate Change Canada. National Air Pollution Surveillance (NAPS) Program.</li>
+                            <li>U.S. Environmental Protection Agency. Air Quality System (AQS) &amp; AirNow.</li>
+                            <li>IQAir / World Health Organization. PM2.5 health guidelines.</li>
+                            <li>National Forestry Database. Canadian wildfire statistics.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- TAB: Feedback                                                 -->
+        <!-- ============================================================ -->
+        <div id="tab-feedback" class="tab-content">
+            <div class="research" style="margin-top:24px;">
+                <div class="research-card" style="text-align:center;padding:48px 32px;">
+                    <h2 style="margin-bottom:8px;">Send Us Feedback</h2>
+                    <p style="max-width:480px;margin:0 auto 24px;">Have suggestions, found a bug, or want to share how you're using C.L.E.A.R.? We'd love to hear from you.</p>
+                    <a href="mailto:ryanzander99@gmail.com?subject=C.L.E.A.R.%20Feedback" class="action-btn action-primary" style="text-decoration:none;display:inline-flex;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        ryanzander99@gmail.com
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{% static 'dashboard/app.js' %}"></script>
+</body>
+</html>
