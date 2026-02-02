@@ -37,7 +37,9 @@ WSGI_APPLICATION = "ews.wsgi.application"
 DATABASES = {}
 STATIC_URL = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Use basic whitenoise (no manifest) so it works without collectstatic on Vercel
+WHITENOISE_USE_FINDERS = True
 
 # Path to the shared data/ folder
 DATA_DIR = os.path.join(BASE_DIR.parent, "data")

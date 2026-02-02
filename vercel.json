@@ -1,6 +1,5 @@
 {
     "version": 2,
-    "buildCommand": "bash build_files.sh",
     "builds": [
         {
             "src": "webapp/ews/wsgi.py",
@@ -11,10 +10,6 @@
         }
     ],
     "routes": [
-        {
-            "src": "/static/(.*)",
-            "dest": "/webapp/dashboard/static/$1"
-        },
         {
             "src": "/(.*)",
             "dest": "webapp/ews/wsgi.py"

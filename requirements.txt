@@ -1,0 +1,4 @@
+django>=4.2
+openpyxl
+requests
+whitenoise

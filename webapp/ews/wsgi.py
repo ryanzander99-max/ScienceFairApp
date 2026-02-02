@@ -1,4 +1,12 @@
 import os
-from django.core.wsgi import get_wsgi_application
+import sys
+
+# Ensure the webapp directory is on the Python path
+webapp_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if webapp_dir not in sys.path:
+    sys.path.insert(0, webapp_dir)
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ews.settings")
-application = get_wsgi_application()
+
+from django.core.wsgi import get_wsgi_application
+app = get_wsgi_application()
