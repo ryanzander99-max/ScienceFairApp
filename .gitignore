@@ -7,8 +7,8 @@ build/
 venv/
 .env
 
-# Secrets
-data/config.json
+# Secrets (API key is read from env var on production)
+# data/config.json
 
 # IDE
 .vscode/
