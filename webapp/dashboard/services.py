@@ -272,36 +272,14 @@ def _haversine(lat1, lon1, lat2, lon2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def fetch_latest_pm25(api_key, stations):
-    """Fetch PM2.5 for stations using PurpleAir bulk bounding-box query.
-
-    Instead of one request per station, we compute a bounding box around all
-    stations, fetch every PurpleAir sensor in that area in one call, then
-    match each station to the nearest sensor within 30 km.
-    """
-    headers = {"X-API-Key": api_key}
-
-    # Only stations with coordinates
-    with_coords = [s for s in stations if s.get("lat") and s.get("lon")]
-    if not with_coords:
-        return {}
-
-    # Compute bounding box with 0.5° padding (~55 km)
-    lats = [s["lat"] for s in with_coords]
-    lons = [s["lon"] for s in with_coords]
-    pad = 0.5
-    nwlat = max(lats) + pad
-    selat = min(lats) - pad
-    nwlng = min(lons) - pad
-    selng = max(lons) + pad
-
-    # Fetch all PurpleAir sensors in bounding box (single request)
+def _fetch_bbox(headers, nwlat, selat, nwlng, selng):
+    """Fetch PurpleAir sensors within a single bounding box. Returns list of sensor dicts."""
     try:
         resp = requests.get(
             f"{PURPLEAIR_BASE}/sensors",
             headers=headers,
             params={
-                "fields": "name,latitude,longitude,pm2.5_cf_1,last_seen",
+                "fields": "latitude,longitude,pm2.5_cf_1",
                 "location_type": "0",  # outdoor only
                 "max_age": 3600,       # seen in last hour
                 "nwlat": nwlat,
@@ -312,46 +290,78 @@ def fetch_latest_pm25(api_key, stations):
             timeout=30,
         )
         if resp.status_code != 200:
-            return {}
+            return []
         data = resp.json()
     except requests.RequestException:
-        return {}
+        return []
 
     fields = data.get("fields", [])
     sensors = data.get("data", [])
     if not fields or not sensors:
-        return {}
+        return []
 
-    # Build list of sensor dicts
     fi = {f: i for i, f in enumerate(fields)}
-    pa_sensors = []
+    result = []
     for row in sensors:
         try:
             pm = row[fi["pm2.5_cf_1"]]
             if pm is None or pm < 0:
                 continue
-            pa_sensors.append({
+            result.append({
                 "lat": row[fi["latitude"]],
                 "lon": row[fi["longitude"]],
                 "pm25": pm,
             })
         except (KeyError, IndexError, TypeError):
             continue
+    return result
 
-    if not pa_sensors:
+
+def fetch_latest_pm25(api_key, stations):
+    """Fetch PM2.5 for stations using per-city PurpleAir bounding-box queries.
+
+    Groups stations by target_city and makes one small bounding-box request
+    per city instead of one giant continental request — drastically reducing
+    the number of PurpleAir sensors returned (and API points consumed).
+    """
+    headers = {"X-API-Key": api_key}
+
+    # Only stations with coordinates
+    with_coords = [s for s in stations if s.get("lat") and s.get("lon")]
+    if not with_coords:
         return {}
 
-    # Match each station to nearest PurpleAir sensor within 30 km
+    # Group stations by target city
+    city_groups = {}
+    for s in with_coords:
+        city = s.get("target_city", "")
+        city_groups.setdefault(city, []).append(s)
+
     readings = {}
-    for st in with_coords:
-        best_dist = 30  # km max
-        best_pm = None
-        for pa in pa_sensors:
-            d = _haversine(st["lat"], st["lon"], pa["lat"], pa["lon"])
-            if d < best_dist:
-                best_dist = d
-                best_pm = pa["pm25"]
-        if best_pm is not None:
-            readings[st["id"]] = best_pm
+    pad = 0.5  # ~55 km padding
+
+    for city, city_stations in city_groups.items():
+        lats = [s["lat"] for s in city_stations]
+        lons = [s["lon"] for s in city_stations]
+        nwlat = max(lats) + pad
+        selat = min(lats) - pad
+        nwlng = min(lons) - pad
+        selng = max(lons) + pad
+
+        pa_sensors = _fetch_bbox(headers, nwlat, selat, nwlng, selng)
+        if not pa_sensors:
+            continue
+
+        # Match each station to nearest PurpleAir sensor within 30 km
+        for st in city_stations:
+            best_dist = 30  # km max
+            best_pm = None
+            for pa in pa_sensors:
+                d = _haversine(st["lat"], st["lon"], pa["lat"], pa["lon"])
+                if d < best_dist:
+                    best_dist = d
+                    best_pm = pa["pm25"]
+            if best_pm is not None:
+                readings[st["id"]] = best_pm
 
     return readings
