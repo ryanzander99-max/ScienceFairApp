@@ -1,9 +1,10 @@
 """
 Core logic for the PM2.5 Early Warning System.
-Ported from src/main.py — loads Excel data, runs regression predictions, fetches OpenAQ.
+Loads Excel data, runs regression predictions, fetches live PM2.5 from PurpleAir.
 """
 
 import json
+import math
 import os
 
 import openpyxl
@@ -220,47 +221,113 @@ def evaluate(stations, readings):
 
 
 # ---------------------------------------------------------------------------
-# OpenAQ
+# PurpleAir
 # ---------------------------------------------------------------------------
 
-OPENAQ_BASE = "https://api.openaq.org/v3"
+PURPLEAIR_BASE = "https://api.purpleair.com/v1"
 
 
 def load_config():
-    # Try config.json first, then fall back to environment variables
     try:
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         pass
-    # Env var fallback for Vercel / production
     cfg = {}
-    if os.environ.get("OPENAQ_API_KEY"):
-        cfg["api_key"] = os.environ["OPENAQ_API_KEY"]
-    if os.environ.get("LOCATION_MAPPING"):
-        try:
-            cfg["location_mapping"] = json.loads(os.environ["LOCATION_MAPPING"])
-        except json.JSONDecodeError:
-            pass
+    if os.environ.get("PURPLEAIR_API_KEY"):
+        cfg["api_key"] = os.environ["PURPLEAIR_API_KEY"]
     return cfg
 
 
-def fetch_latest_pm25(api_key, location_mapping):
+def _haversine(lat1, lon1, lat2, lon2):
+    """Distance in km between two lat/lon points."""
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def fetch_latest_pm25(api_key, stations):
+    """Fetch PM2.5 for stations using PurpleAir bulk bounding-box query.
+
+    Instead of one request per station, we compute a bounding box around all
+    stations, fetch every PurpleAir sensor in that area in one call, then
+    match each station to the nearest sensor within 30 km.
+    """
     headers = {"X-API-Key": api_key}
-    readings = {}
-    for station_id, loc_id in location_mapping.items():
+
+    # Only stations with coordinates
+    with_coords = [s for s in stations if s.get("lat") and s.get("lon")]
+    if not with_coords:
+        return {}
+
+    # Compute bounding box with 0.5° padding (~55 km)
+    lats = [s["lat"] for s in with_coords]
+    lons = [s["lon"] for s in with_coords]
+    pad = 0.5
+    nwlat = max(lats) + pad
+    selat = min(lats) - pad
+    nwlng = min(lons) - pad
+    selng = max(lons) + pad
+
+    # Fetch all PurpleAir sensors in bounding box (single request)
+    try:
+        resp = requests.get(
+            f"{PURPLEAIR_BASE}/sensors",
+            headers=headers,
+            params={
+                "fields": "name,latitude,longitude,pm2.5_cf_1,last_seen",
+                "location_type": "0",  # outdoor only
+                "max_age": 3600,       # seen in last hour
+                "nwlat": nwlat,
+                "nwlng": nwlng,
+                "selat": selat,
+                "selng": selng,
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+    except requests.RequestException:
+        return {}
+
+    fields = data.get("fields", [])
+    sensors = data.get("data", [])
+    if not fields or not sensors:
+        return {}
+
+    # Build list of sensor dicts
+    fi = {f: i for i, f in enumerate(fields)}
+    pa_sensors = []
+    for row in sensors:
         try:
-            resp = requests.get(
-                f"{OPENAQ_BASE}/locations/{loc_id}/latest",
-                headers=headers, timeout=10,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                for result in data.get("results", []):
-                    val = result.get("value")
-                    if val is not None and val >= 0:
-                        readings[station_id] = val
-                        break
-        except requests.RequestException:
-            pass
+            pm = row[fi["pm2.5_cf_1"]]
+            if pm is None or pm < 0:
+                continue
+            pa_sensors.append({
+                "lat": row[fi["latitude"]],
+                "lon": row[fi["longitude"]],
+                "pm25": pm,
+            })
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    if not pa_sensors:
+        return {}
+
+    # Match each station to nearest PurpleAir sensor within 30 km
+    readings = {}
+    for st in with_coords:
+        best_dist = 30  # km max
+        best_pm = None
+        for pa in pa_sensors:
+            d = _haversine(st["lat"], st["lon"], pa["lat"], pa["lon"])
+            if d < best_dist:
+                best_dist = d
+                best_pm = pa["pm25"]
+        if best_pm is not None:
+            readings[st["id"]] = best_pm
+
     return readings

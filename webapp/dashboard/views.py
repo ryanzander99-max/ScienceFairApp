@@ -34,17 +34,11 @@ def api_demo(request, city):
 def api_fetch(request, city):
     config = services.load_config()
     api_key = config.get("api_key", "")
-    location_mapping = config.get("location_mapping", {})
 
     if not api_key:
-        return JsonResponse({"error": "No API key in config.json"}, status=400)
-    if not location_mapping:
-        return JsonResponse({"error": "No location_mapping in config.json"}, status=400)
+        return JsonResponse({"error": "No PurpleAir API key configured"}, status=400)
 
     stations = services.load_stations(city)
-    city_ids = {st["id"] for st in stations}
-    relevant = {k: v for k, v in location_mapping.items() if k in city_ids}
-
-    readings = services.fetch_latest_pm25(api_key, relevant)
+    readings = services.fetch_latest_pm25(api_key, stations)
     results = services.evaluate(stations, readings)
     return JsonResponse({"results": results})
