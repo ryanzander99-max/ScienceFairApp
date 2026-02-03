@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}?v=6">
+    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}?v=7">
 </head>
 <body>
     <div class="app">
@@ -57,18 +57,8 @@
                 {% endfor %}
             </div>
 
-            <!-- Progress Bar -->
-            <div id="progress-wrap" class="progress-wrap" style="display:none;">
-                <div class="progress-label" id="progress-label">Fetching live data...</div>
-                <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-            </div>
-
             <!-- Action Bar -->
             <div class="actions">
-                <button id="btn-fetch" class="action-btn action-primary" onclick="fetchLive()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                    Fetch Live Data
-                </button>
                 <button id="btn-demo" class="action-btn action-ghost" onclick="runDemo()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     Run Demo
@@ -111,7 +101,7 @@
                 <div id="table-body" class="table-body">
                     <div class="empty-state">
                         <div class="empty-icon">📡</div>
-                        <div class="empty-text">Select a city and click <strong>Fetch Live Data</strong> or <strong>Run Demo</strong></div>
+                        <div class="empty-text">Loading live data... or click <strong>Run Demo</strong></div>
                     </div>
                 </div>
             </div>
@@ -127,15 +117,11 @@
         <!-- ============================================================ -->
         <div id="tab-map" class="tab-content">
             <div class="map-controls">
-                <button id="map-btn-fetch" class="action-btn action-primary" onclick="mapFetchLive()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                    Fetch Live Data
-                </button>
                 <button class="action-btn action-ghost" onclick="mapRunDemo()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     Run Demo
                 </button>
-                <div id="map-status" class="station-count">Click fetch or demo to see station data on the map</div>
+                <div id="map-status" class="station-count">Live data updates automatically every 30 minutes</div>
             </div>
             <div id="map-container" class="map-container"></div>
             <div class="map-legend">
@@ -491,6 +477,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="{% static 'dashboard/app.js' %}?v=6"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=7"></script>
 </body>
 </html>

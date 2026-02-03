@@ -9,103 +9,12 @@ let mapMarkers = [];
 let lastResults = null;
 let lastCityAlerts = null;
 
-// Auth state
-let authState = { authenticated: false, can_fetch: false, seconds_remaining: 0 };
-let countdownInterval = null;
-
 // DOM refs
 const tableBody = document.getElementById("table-body");
 const statusEl = document.getElementById("status");
-const btnFetch = document.getElementById("btn-fetch");
 const statsRow = document.getElementById("stats-row");
 const stationCount = document.getElementById("station-count");
 const mapStatus = document.getElementById("map-status");
-const mapBtnFetch = document.getElementById("map-btn-fetch");
-
-// ---- Auth helpers ----
-async function checkAuthStatus() {
-    try {
-        const resp = await fetch("/api/auth-status/");
-        authState = await resp.json();
-    } catch (e) {
-        authState = { authenticated: false };
-    }
-    updateFetchButtons();
-}
-
-function updateFetchButtons() {
-    const allFetchBtns = [btnFetch, mapBtnFetch];
-    if (!authState.authenticated) {
-        allFetchBtns.forEach(btn => {
-            if (!btn) return;
-            btn.disabled = true;
-            btn.title = "Log in to fetch live data";
-        });
-        statusEl.textContent = "Log in to fetch live data";
-        stopCountdown();
-    } else if (!authState.can_fetch && authState.seconds_remaining > 0) {
-        allFetchBtns.forEach(btn => {
-            if (!btn) return;
-            btn.disabled = true;
-            btn.title = "";
-        });
-        startCountdown(authState.seconds_remaining);
-    } else {
-        allFetchBtns.forEach(btn => {
-            if (!btn) return;
-            btn.disabled = false;
-            btn.title = "";
-        });
-        stopCountdown();
-    }
-}
-
-function startCountdown(seconds) {
-    stopCountdown();
-    let remaining = seconds;
-    updateCountdownDisplay(remaining);
-    countdownInterval = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-            stopCountdown();
-            authState.can_fetch = true;
-            authState.seconds_remaining = 0;
-            updateFetchButtons();
-            statusEl.textContent = "Ready to fetch";
-            return;
-        }
-        updateCountdownDisplay(remaining);
-    }, 1000);
-}
-
-function stopCountdown() {
-    clearInterval(countdownInterval);
-    countdownInterval = null;
-    const el = document.getElementById("rate-limit-timer");
-    if (el) el.textContent = "";
-}
-
-function updateCountdownDisplay(seconds) {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    const text = `Next fetch available in ${min}:${sec.toString().padStart(2, "0")}`;
-    statusEl.textContent = text;
-    const el = document.getElementById("rate-limit-timer");
-    if (el) el.textContent = text;
-}
-
-function showToast(msg, duration) {
-    let toast = document.getElementById("toast");
-    if (!toast) {
-        toast = document.createElement("div");
-        toast.id = "toast";
-        toast.className = "toast";
-        document.body.appendChild(toast);
-    }
-    toast.textContent = msg;
-    toast.classList.add("toast-visible");
-    setTimeout(() => { toast.classList.remove("toast-visible"); }, duration || 4000);
-}
 
 // ---- Tab switching ----
 document.querySelectorAll(".tab").forEach(t => {
@@ -276,83 +185,23 @@ async function runDemo() {
     }
 }
 
-const progressWrap = document.getElementById("progress-wrap");
-const progressFill = document.getElementById("progress-fill");
-const progressLabel = document.getElementById("progress-label");
-let progressInterval = null;
-
-function showProgress(label) {
-    progressWrap.style.display = "block";
-    progressLabel.textContent = label || "Fetching live data...";
-    progressFill.style.width = "0%";
-    let pct = 0;
-    clearInterval(progressInterval);
-    progressInterval = setInterval(() => {
-        pct += (100 - pct) * 0.08;
-        if (pct > 95) pct = 95;
-        progressFill.style.width = pct + "%";
-    }, 200);
-}
-
-function hideProgress() {
-    clearInterval(progressInterval);
-    progressFill.style.width = "100%";
-    setTimeout(() => { progressWrap.style.display = "none"; }, 400);
-}
-
-const svgRefresh = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
-
-async function fetchLive() {
-    if (!authState.authenticated) {
-        showToast("Please log in to fetch live data");
-        return;
-    }
-    if (!authState.can_fetch) {
-        showToast("Rate limited — please wait before fetching again");
-        return;
-    }
-
-    btnFetch.disabled = true;
-    btnFetch.innerHTML = svgRefresh + " Fetching...";
-    if (mapBtnFetch) mapBtnFetch.disabled = true;
-    statusEl.textContent = "Fetching live station data...";
-    showProgress("Fetching live data from monitoring stations...");
+async function loadLiveData() {
+    statusEl.textContent = "Loading live data...";
     try {
-        const resp = await fetch("/api/fetch/", { credentials: "same-origin" });
-        const contentType = resp.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) {
-            throw new Error(`Server returned ${resp.status} (not JSON). Are you logged in?`);
-        }
+        const resp = await fetch("/api/live/");
         const data = await resp.json();
-        if (resp.status === 401) {
-            showToast("Please log in to fetch live data");
-            statusEl.textContent = "Login required";
-        } else if (resp.status === 429) {
-            authState.can_fetch = false;
-            authState.seconds_remaining = data.seconds_remaining || 1800;
-            updateFetchButtons();
-            showToast(data.error || "Rate limited");
-        } else if (data.error) {
-            statusEl.textContent = data.error;
-        } else {
-            const now = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
-            handleResults(data.results, `Live data · ${now}`, data.city_alerts);
-            // Start 30-min cooldown
-            authState.can_fetch = false;
-            authState.seconds_remaining = 1800;
-            updateFetchButtons();
+        if (data.results && data.results.length > 0) {
+            const age = data.age_seconds || 0;
+            const mins = Math.floor(age / 60);
+            let label;
+            if (mins < 1) label = "Live data · just updated";
+            else if (mins < 60) label = `Live data · updated ${mins} min ago`;
+            else label = `Live data · updated ${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+            handleResults(data.results, label, data.city_alerts);
+            return true;
         }
-    } catch (e) {
-        statusEl.textContent = `Error: ${e}`;
-    } finally {
-        hideProgress();
-        btnFetch.innerHTML = svgRefresh + " Fetch Live Data";
-        // Buttons re-enabled by updateFetchButtons via countdown
-        if (authState.can_fetch) {
-            btnFetch.disabled = false;
-            if (mapBtnFetch) mapBtnFetch.disabled = false;
-        }
-    }
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 // ---- Map functions ----
@@ -454,7 +303,7 @@ function updateMapMarkers(results) {
                 <div class="popup-row"><span class="popup-label">Stations</span><span class="popup-val">${alert.count} reporting</span></div>
             `;
         } else {
-            popupContent += `<div style="color:#71717a;font-size:12px;margin-top:4px;">No data — fetch live data or run demo</div>`;
+            popupContent += `<div style="color:#71717a;font-size:12px;margin-top:4px;">No data available yet</div>`;
         }
         m.bindPopup(popupContent);
         mapMarkers.push(m);
@@ -513,7 +362,7 @@ function updateMapMarkers(results) {
     }
 }
 
-// Map buttons
+// Map demo button
 async function mapRunDemo() {
     mapStatus.textContent = "Loading demo...";
     try {
@@ -525,34 +374,12 @@ async function mapRunDemo() {
     }
 }
 
-async function mapFetchLive() {
-    fetchLive();
-}
-
-// Load cached results from last fetch
-async function loadCachedResults() {
-    try {
-        const resp = await fetch("/api/last-results/");
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data.results) {
-                handleResults(data.results, "Cached data from last fetch", data.city_alerts);
-                return true;
-            }
-        }
-    } catch (e) { /* ignore */ }
-    return false;
-}
-
 // Init
 async function init() {
-    await checkAuthStatus();
     await loadStations();
-    if (authState.authenticated) {
-        const hasCached = await loadCachedResults();
-        if (!hasCached && authState.can_fetch) {
-            fetchLive();
-        }
+    const hasLive = await loadLiveData();
+    if (!hasLive) {
+        statusEl.textContent = "No live data yet — run demo or wait for next refresh";
     }
 }
 init();

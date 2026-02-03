@@ -38,6 +38,15 @@ class ReadingSnapshot(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
 
 
+class CachedResult(models.Model):
+    """Stores the latest server-side refresh results. Single row (key='latest')."""
+    key = models.CharField(max_length=20, unique=True, default="latest")
+    results = models.JSONField(default=list)
+    city_alerts = models.JSONField(default=dict)
+    readings = models.JSONField(default=dict)
+    timestamp = models.DateTimeField(auto_now=True)
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
