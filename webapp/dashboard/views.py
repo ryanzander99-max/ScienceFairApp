@@ -54,38 +54,42 @@ def api_fetch(request, city=None):
     if not api_key:
         return JsonResponse({"error": "No WAQI API token configured"}, status=400)
 
-    if city:
-        stations = services.load_stations(city)
-    else:
-        stations = services.load_all_stations()
-    readings = services.fetch_latest_pm25(api_key, stations)
+    try:
+        if city:
+            stations = services.load_stations(city)
+        else:
+            stations = services.load_all_stations()
+        readings = services.fetch_latest_pm25(api_key, stations)
 
-    # Load previous readings for Rule 2 (dual-station sustained check)
-    previous_readings = {}
-    for city_key in services.CITIES:
-        try:
-            snap = ReadingSnapshot.objects.get(city=city_key)
-            previous_readings.update(snap.readings)
-        except ReadingSnapshot.DoesNotExist:
-            pass
+        # Load previous readings for Rule 2 (dual-station sustained check)
+        previous_readings = {}
+        for city_key in services.CITIES:
+            try:
+                snap = ReadingSnapshot.objects.get(city=city_key)
+                previous_readings.update(snap.readings)
+            except ReadingSnapshot.DoesNotExist:
+                pass
 
-    result = services.evaluate(stations, readings, previous_readings=previous_readings)
+        result = services.evaluate(stations, readings, previous_readings=previous_readings)
 
-    # Save current readings as the new snapshot for next fetch
-    city_readings = {}
-    for st in stations:
-        sid = st["id"]
-        if sid in readings:
-            tc = st.get("target_city", "")
-            city_readings.setdefault(tc, {})[sid] = readings[sid]
-    for city_key, cr in city_readings.items():
-        ReadingSnapshot.objects.update_or_create(city=city_key, defaults={"readings": cr})
+        # Save current readings as the new snapshot for next fetch
+        city_readings = {}
+        for st in stations:
+            sid = st["id"]
+            if sid in readings:
+                tc = st.get("target_city", "")
+                city_readings.setdefault(tc, {})[sid] = readings[sid]
+        for city_key, cr in city_readings.items():
+            ReadingSnapshot.objects.update_or_create(city=city_key, defaults={"readings": cr})
 
-    profile.last_fetch_time = timezone.now()
-    profile.last_fetch_results = result
-    profile.save(update_fields=["last_fetch_time", "last_fetch_results"])
+        profile.last_fetch_time = timezone.now()
+        profile.last_fetch_results = result
+        profile.save(update_fields=["last_fetch_time", "last_fetch_results"])
 
-    return JsonResponse({"results": result["stations"], "city_alerts": result["city_alerts"]})
+        return JsonResponse({"results": result["stations"], "city_alerts": result["city_alerts"]})
+    except Exception as e:
+        import traceback
+        return JsonResponse({"error": f"Server error: {str(e)}", "trace": traceback.format_exc()}, status=500)
 
 
 def api_auth_status(request):

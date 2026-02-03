@@ -364,18 +364,15 @@ def _aqi_to_ugm3(aqi):
 
 
 def load_config():
+    # Prefer environment variable over config file
+    if os.environ.get("WAQI_API_TOKEN"):
+        return {"api_key": os.environ["WAQI_API_TOKEN"]}
     try:
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         pass
-    cfg = {}
-    if os.environ.get("WAQI_API_TOKEN"):
-        cfg["api_key"] = os.environ["WAQI_API_TOKEN"]
-    # Fallback to legacy PurpleAir key name
-    elif os.environ.get("PURPLEAIR_API_KEY"):
-        cfg["api_key"] = os.environ["PURPLEAIR_API_KEY"]
-    return cfg
+    return {}
 
 
 def _haversine(lat1, lon1, lat2, lon2):
