@@ -8,7 +8,7 @@ venv/
 .env
 
 # Secrets (API key is read from env var on production)
-# data/config.json
+data/config.json
 
 # IDE
 .vscode/
