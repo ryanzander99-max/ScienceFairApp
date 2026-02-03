@@ -60,6 +60,12 @@ body {
     flex-shrink: 0;
 }
 
+.nav-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+}
+
 .nav-icon { font-size: 22px; line-height: 1; }
 
 .nav-title {
@@ -929,13 +935,14 @@ body {
 }
 
 .auth-link {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #71717a;
     text-decoration: none;
-    padding: 6px 14px;
+    padding: 8px 18px;
     border-radius: 8px;
     transition: all 0.15s;
+    white-space: nowrap;
 }
 
 .auth-link:hover { color: #fafafa; background: #27272a; }
