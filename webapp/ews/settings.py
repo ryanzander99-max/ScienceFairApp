@@ -45,17 +45,14 @@ WSGI_APPLICATION = "ews.wsgi.application"
 # Database — Supabase PostgreSQL via DATABASE_URL, fallback to SQLite for local dev
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if DATABASE_URL:
-    # URL-encode the password portion to handle special characters
-    import urllib.parse as _urlparse
-    _parsed = _urlparse.urlparse(DATABASE_URL)
-    if _parsed.password:
-        _safe_password = _urlparse.quote(_parsed.password, safe="")
-        _netloc = f"{_parsed.username}:{_safe_password}@{_parsed.hostname}"
-        if _parsed.port:
-            _netloc += f":{_parsed.port}"
-        DATABASE_URL = _urlparse.urlunparse(
-            (_parsed.scheme, _netloc, _parsed.path, _parsed.params, _parsed.query, _parsed.fragment)
-        )
+    # URL-encode the password to handle special characters that break urlparse.
+    # Format: scheme://user:password@host:port/dbname
+    import re as _re, urllib.parse as _urlquote
+    _m = _re.match(r'^([^:]+)://([^:]+):(.+)@(.+)$', DATABASE_URL)
+    if _m:
+        _scheme, _user, _pw, _rest = _m.groups()
+        _safe_pw = _urlquote.quote(_pw, safe="")
+        DATABASE_URL = f"{_scheme}://{_user}:{_safe_pw}@{_rest}"
     import dj_database_url
     DATABASES = {
         "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
