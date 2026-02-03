@@ -5,6 +5,7 @@ from django.contrib import auth
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 
 from . import services
 from .models import ReadingSnapshot, CachedResult, Suggestion, SuggestionVote, Comment
@@ -201,6 +202,7 @@ def api_suggestions(request):
     return JsonResponse({"suggestions": items})
 
 
+@csrf_exempt
 def api_suggestion_create(request):
     """Create a new suggestion. Requires authentication."""
     if not request.user.is_authenticated:
@@ -239,6 +241,7 @@ def api_suggestion_create(request):
     })
 
 
+@csrf_exempt
 def api_suggestion_vote(request, suggestion_id):
     """Vote on a suggestion. Requires authentication."""
     if not request.user.is_authenticated:
@@ -306,6 +309,7 @@ def api_suggestion_detail(request, suggestion_id):
     })
 
 
+@csrf_exempt
 def api_comment_create(request, suggestion_id):
     """Add a comment to a suggestion. Requires authentication."""
     if not request.user.is_authenticated:
