@@ -20,11 +20,10 @@ def _ensure_migrated():
     _migrated = True
     try:
         from django.contrib.sites.models import Site
-        Site.objects.count()
+        Site.objects.get(id=1)
     except Exception:
         from django.core.management import call_command
         call_command("migrate", "--noinput")
-        # Also ensure the Site record exists
         from django.contrib.sites.models import Site
         Site.objects.update_or_create(id=1, defaults={"domain": "clear25.xyz", "name": "C.L.E.A.R."})
 
