@@ -8,6 +8,10 @@ let map = null;
 let mapMarkers = [];
 let lastResults = null;
 
+// Auth state
+let authState = { authenticated: false, can_fetch: false, seconds_remaining: 0 };
+let countdownInterval = null;
+
 // DOM refs
 const tableBody = document.getElementById("table-body");
 const statusEl = document.getElementById("status");
@@ -16,6 +20,91 @@ const statsRow = document.getElementById("stats-row");
 const stationCount = document.getElementById("station-count");
 const mapStatus = document.getElementById("map-status");
 const mapBtnFetch = document.getElementById("map-btn-fetch");
+
+// ---- Auth helpers ----
+async function checkAuthStatus() {
+    try {
+        const resp = await fetch("/api/auth-status/");
+        authState = await resp.json();
+    } catch (e) {
+        authState = { authenticated: false };
+    }
+    updateFetchButtons();
+}
+
+function updateFetchButtons() {
+    const allFetchBtns = [btnFetch, mapBtnFetch];
+    if (!authState.authenticated) {
+        allFetchBtns.forEach(btn => {
+            if (!btn) return;
+            btn.disabled = true;
+            btn.title = "Log in to fetch live data";
+        });
+        statusEl.textContent = "Log in to fetch live data";
+        stopCountdown();
+    } else if (!authState.can_fetch && authState.seconds_remaining > 0) {
+        allFetchBtns.forEach(btn => {
+            if (!btn) return;
+            btn.disabled = true;
+            btn.title = "";
+        });
+        startCountdown(authState.seconds_remaining);
+    } else {
+        allFetchBtns.forEach(btn => {
+            if (!btn) return;
+            btn.disabled = false;
+            btn.title = "";
+        });
+        stopCountdown();
+    }
+}
+
+function startCountdown(seconds) {
+    stopCountdown();
+    let remaining = seconds;
+    updateCountdownDisplay(remaining);
+    countdownInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            stopCountdown();
+            authState.can_fetch = true;
+            authState.seconds_remaining = 0;
+            updateFetchButtons();
+            statusEl.textContent = "Ready to fetch";
+            return;
+        }
+        updateCountdownDisplay(remaining);
+    }, 1000);
+}
+
+function stopCountdown() {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    const el = document.getElementById("rate-limit-timer");
+    if (el) el.textContent = "";
+}
+
+function updateCountdownDisplay(seconds) {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    const text = `Next fetch available in ${min}:${sec.toString().padStart(2, "0")}`;
+    statusEl.textContent = text;
+    const el = document.getElementById("rate-limit-timer");
+    if (el) el.textContent = text;
+}
+
+function showToast(msg, duration) {
+    let toast = document.getElementById("toast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        toast.className = "toast";
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add("toast-visible");
+    setTimeout(() => { toast.classList.remove("toast-visible"); }, duration || 4000);
+}
 
 // ---- Tab switching ----
 document.querySelectorAll(".tab").forEach(t => {
@@ -68,7 +157,6 @@ function renderTable(results) {
             html += `<div class="tier-sep" style="color:#3b82f6;font-size:13px;padding:12px 20px 6px;">${city}</div>`;
         }
 
-        // Match by id + target_city, or just id
         const r = resultMap[st.id + city] || (results ? results.find(x => x.id === st.id && x.target_city === city) : null);
         const hasData = !!r;
         const pm = hasData ? r.pm25.toFixed(1) : "—";
@@ -126,7 +214,7 @@ function updateCityCards(results) {
             return;
         }
 
-        const worst = cityResults[0]; // already sorted by predicted desc
+        const worst = cityResults[0];
         card.style.setProperty("--card-color", worst.level_hex);
         card.style.borderColor = worst.level_hex + "44";
         levelEl.textContent = `${worst.level_name}  ·  ${worst.predicted.toFixed(1)} µg/m³`;
@@ -134,7 +222,6 @@ function updateCityCards(results) {
         detailEl.textContent = `via ${worst.station} · ${cityResults.length} stations`;
     });
 
-    // Update stats row
     if (results && results.length > 0) {
         statsRow.style.display = "grid";
         const worst = results[0];
@@ -196,25 +283,51 @@ function hideProgress() {
 const svgRefresh = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
 
 async function fetchLive() {
+    if (!authState.authenticated) {
+        showToast("Please log in to fetch live data");
+        return;
+    }
+    if (!authState.can_fetch) {
+        showToast("Rate limited — please wait before fetching again");
+        return;
+    }
+
     btnFetch.disabled = true;
     btnFetch.innerHTML = svgRefresh + " Fetching...";
+    if (mapBtnFetch) mapBtnFetch.disabled = true;
     statusEl.textContent = "Connecting to PurpleAir...";
     showProgress("Fetching live data from PurpleAir...");
     try {
-        const resp = await fetch("/api/fetch/", { method: "POST" });
+        const resp = await fetch("/api/fetch/", { method: "POST", credentials: "same-origin" });
         const data = await resp.json();
-        if (data.error) {
+        if (resp.status === 401) {
+            showToast("Please log in to fetch live data");
+            statusEl.textContent = "Login required";
+        } else if (resp.status === 429) {
+            authState.can_fetch = false;
+            authState.seconds_remaining = data.seconds_remaining || 1800;
+            updateFetchButtons();
+            showToast(data.error || "Rate limited");
+        } else if (data.error) {
             statusEl.textContent = data.error;
         } else {
             const now = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
             handleResults(data.results, `Live data · ${now}`);
+            // Start 30-min cooldown
+            authState.can_fetch = false;
+            authState.seconds_remaining = 1800;
+            updateFetchButtons();
         }
     } catch (e) {
         statusEl.textContent = `Error: ${e}`;
     } finally {
         hideProgress();
-        btnFetch.disabled = false;
         btnFetch.innerHTML = svgRefresh + " Fetch Live Data";
+        // Buttons re-enabled by updateFetchButtons via countdown
+        if (authState.can_fetch) {
+            btnFetch.disabled = false;
+            if (mapBtnFetch) mapBtnFetch.disabled = false;
+        }
     }
 }
 
@@ -249,7 +362,6 @@ function getCityAlertInfo(results, cityName) {
     if (!results) return { color: "#3b82f6", level: "No Data", predicted: null, hex: "#3b82f6" };
     const cityResults = results.filter(r => r.target_city === cityName);
     if (cityResults.length === 0) return { color: "#3b82f6", level: "No Data", predicted: null, hex: "#3b82f6" };
-    // worst (highest predicted) is first since results are sorted
     const worst = cityResults[0];
     return { color: worst.level_hex, level: worst.level_name, predicted: worst.predicted, hex: worst.level_hex, textColor: worst.level_text_color, lead: worst.lead, station: worst.station, count: cityResults.length };
 }
@@ -261,10 +373,10 @@ function updateMapMarkers(results) {
     const resultMap = {};
     if (results) results.forEach(r => { resultMap[r.id + (r.target_city || "")] = r; });
 
-    // City prediction bubbles (radius circles) — drawn first so they're behind everything
+    // City prediction bubbles
     for (const [name, info] of Object.entries(citiesInfo)) {
         const alert = getCityAlertInfo(results, name);
-        const radiusKm = 60000; // 60km visual radius
+        const radiusKm = 60000;
         const bubble = L.circle([info.lat, info.lon], {
             radius: radiusKm,
             color: alert.color,
@@ -342,7 +454,6 @@ function updateMapMarkers(results) {
             ${popupExtra}
         `);
 
-        // Draw line to target city
         if (r && citiesInfo[city]) {
             const ci = citiesInfo[city];
             const line = L.polyline([[st.lat, st.lon], [ci.lat, ci.lon]], {
@@ -354,7 +465,6 @@ function updateMapMarkers(results) {
         mapMarkers.push(marker);
     });
 
-    // Fit Canada bounds
     if (stations.length > 0) {
         const lats = stations.filter(s => s.lat).map(s => s.lat);
         const lons = stations.filter(s => s.lon).map(s => s.lon);
@@ -380,30 +490,15 @@ async function mapRunDemo() {
 }
 
 async function mapFetchLive() {
-    mapBtnFetch.disabled = true;
-    mapStatus.textContent = "Fetching live data...";
-    try {
-        const resp = await fetch("/api/fetch/", { method: "POST" });
-        const data = await resp.json();
-        if (data.error) {
-            mapStatus.textContent = data.error;
-        } else {
-            handleResults(data.results, `Live data · ${data.results.length} stations`);
-        }
-    } catch (e) {
-        mapStatus.textContent = `Error: ${e}`;
-    } finally {
-        mapBtnFetch.disabled = false;
-    }
-}
-
-// Init — load all stations then auto-fetch
-const AUTO_REFRESH_MS = 15 * 60 * 1000;
-
-async function init() {
-    await loadStations();
     fetchLive();
 }
-init();
 
-setInterval(() => { fetchLive(); }, AUTO_REFRESH_MS);
+// Init
+async function init() {
+    await checkAuthStatus();
+    await loadStations();
+    if (authState.authenticated && authState.can_fetch) {
+        fetchLive();
+    }
+}
+init();
