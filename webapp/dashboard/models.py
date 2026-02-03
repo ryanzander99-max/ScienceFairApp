@@ -47,6 +47,45 @@ class CachedResult(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
 
 
+class Suggestion(models.Model):
+    """User suggestion/feedback for the improvement board."""
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="suggestions")
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def vote_score(self):
+        return self.votes.filter(value=1).count() - self.votes.filter(value=-1).count()
+
+    def comment_count(self):
+        return self.comments.count()
+
+
+class SuggestionVote(models.Model):
+    """Upvote/downvote on a suggestion."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    suggestion = models.ForeignKey(Suggestion, on_delete=models.CASCADE, related_name="votes")
+    value = models.SmallIntegerField()  # 1 = upvote, -1 = downvote
+
+    class Meta:
+        unique_together = ("user", "suggestion")
+
+
+class Comment(models.Model):
+    """Comment on a suggestion."""
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="comments")
+    suggestion = models.ForeignKey(Suggestion, on_delete=models.CASCADE, related_name="comments")
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

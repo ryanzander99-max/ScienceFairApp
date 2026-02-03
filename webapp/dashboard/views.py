@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from . import services
-from .models import ReadingSnapshot, CachedResult
+from .models import ReadingSnapshot, CachedResult, Suggestion, SuggestionVote, Comment
 
 
 def index(request):
@@ -127,3 +127,215 @@ def api_auth_status(request):
 def logout_view(request):
     auth.logout(request)
     return redirect("/")
+
+
+# ─────────────────────────────────────────────────────────────
+# Feedback Board API
+# ─────────────────────────────────────────────────────────────
+
+import re
+
+# Profanity filter word list (lowercase)
+PROFANITY_LIST = [
+    "fuck", "shit", "ass", "bitch", "damn", "crap", "dick", "cock", "pussy",
+    "asshole", "bastard", "cunt", "fag", "faggot", "nigger", "nigga", "retard",
+    "whore", "slut", "piss", "bollocks", "wanker", "twat", "prick", "douche",
+]
+
+def contains_profanity(text):
+    """Check if text contains profanity. Returns the matched word or None."""
+    text_lower = text.lower()
+    # Remove common letter substitutions
+    text_clean = text_lower.replace("@", "a").replace("$", "s").replace("0", "o").replace("1", "i").replace("3", "e")
+    for word in PROFANITY_LIST:
+        # Match whole word or with common boundaries
+        pattern = r'\b' + re.escape(word) + r'\b'
+        if re.search(pattern, text_clean):
+            return word
+        # Also check without word boundaries for concatenated profanity
+        if word in text_clean:
+            return word
+    return None
+
+
+def api_suggestions(request):
+    """List all suggestions with vote counts and comment counts."""
+    sort = request.GET.get("sort", "hot")  # hot, new, top
+    suggestions = Suggestion.objects.all()
+
+    # Build list with computed fields
+    items = []
+    for s in suggestions:
+        score = s.vote_score()
+        items.append({
+            "id": s.id,
+            "title": s.title,
+            "body": s.body,
+            "author": s.author.get_full_name() or s.author.username,
+            "created_at": s.created_at.isoformat(),
+            "score": score,
+            "comment_count": s.comment_count(),
+            "user_vote": 0,
+        })
+
+    # Add user's vote if authenticated
+    if request.user.is_authenticated:
+        user_votes = {v.suggestion_id: v.value for v in SuggestionVote.objects.filter(user=request.user)}
+        for item in items:
+            item["user_vote"] = user_votes.get(item["id"], 0)
+
+    # Sort
+    if sort == "new":
+        items.sort(key=lambda x: x["created_at"], reverse=True)
+    elif sort == "top":
+        items.sort(key=lambda x: x["score"], reverse=True)
+    else:  # hot: score weighted by recency
+        now = timezone.now()
+        for item in items:
+            age_hours = (now - datetime.datetime.fromisoformat(item["created_at"])).total_seconds() / 3600
+            item["_hot"] = item["score"] / (age_hours + 2) ** 1.5
+        items.sort(key=lambda x: x["_hot"], reverse=True)
+        for item in items:
+            del item["_hot"]
+
+    return JsonResponse({"suggestions": items})
+
+
+def api_suggestion_create(request):
+    """Create a new suggestion. Requires authentication."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    import json
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    title = data.get("title", "").strip()
+    body = data.get("body", "").strip()
+
+    if not title or len(title) < 5:
+        return JsonResponse({"error": "Title must be at least 5 characters"}, status=400)
+    if not body or len(body) < 10:
+        return JsonResponse({"error": "Description must be at least 10 characters"}, status=400)
+
+    # Profanity check
+    bad_word = contains_profanity(title) or contains_profanity(body)
+    if bad_word:
+        return JsonResponse({"error": "Please keep it professional — no profanity allowed"}, status=400)
+
+    s = Suggestion.objects.create(author=request.user, title=title, body=body)
+    return JsonResponse({
+        "id": s.id,
+        "title": s.title,
+        "body": s.body,
+        "author": s.author.get_full_name() or s.author.username,
+        "created_at": s.created_at.isoformat(),
+        "score": 0,
+        "comment_count": 0,
+    })
+
+
+def api_suggestion_vote(request, suggestion_id):
+    """Vote on a suggestion. Requires authentication."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    import json
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    value = data.get("value", 0)
+    if value not in (-1, 0, 1):
+        return JsonResponse({"error": "Value must be -1, 0, or 1"}, status=400)
+
+    try:
+        suggestion = Suggestion.objects.get(id=suggestion_id)
+    except Suggestion.DoesNotExist:
+        return JsonResponse({"error": "Suggestion not found"}, status=404)
+
+    if value == 0:
+        SuggestionVote.objects.filter(user=request.user, suggestion=suggestion).delete()
+    else:
+        SuggestionVote.objects.update_or_create(
+            user=request.user, suggestion=suggestion,
+            defaults={"value": value}
+        )
+
+    return JsonResponse({"score": suggestion.vote_score(), "user_vote": value})
+
+
+def api_suggestion_detail(request, suggestion_id):
+    """Get a suggestion with all its comments."""
+    try:
+        s = Suggestion.objects.get(id=suggestion_id)
+    except Suggestion.DoesNotExist:
+        return JsonResponse({"error": "Suggestion not found"}, status=404)
+
+    user_vote = 0
+    if request.user.is_authenticated:
+        vote = SuggestionVote.objects.filter(user=request.user, suggestion=s).first()
+        if vote:
+            user_vote = vote.value
+
+    comments = []
+    for c in s.comments.all():
+        comments.append({
+            "id": c.id,
+            "body": c.body,
+            "author": c.author.get_full_name() or c.author.username,
+            "created_at": c.created_at.isoformat(),
+        })
+
+    return JsonResponse({
+        "id": s.id,
+        "title": s.title,
+        "body": s.body,
+        "author": s.author.get_full_name() or s.author.username,
+        "created_at": s.created_at.isoformat(),
+        "score": s.vote_score(),
+        "user_vote": user_vote,
+        "comments": comments,
+    })
+
+
+def api_comment_create(request, suggestion_id):
+    """Add a comment to a suggestion. Requires authentication."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    try:
+        suggestion = Suggestion.objects.get(id=suggestion_id)
+    except Suggestion.DoesNotExist:
+        return JsonResponse({"error": "Suggestion not found"}, status=404)
+
+    import json
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    body = data.get("body", "").strip()
+    if not body or len(body) < 2:
+        return JsonResponse({"error": "Comment must be at least 2 characters"}, status=400)
+
+    # Profanity check
+    if contains_profanity(body):
+        return JsonResponse({"error": "Please keep it professional — no profanity allowed"}, status=400)
+
+    c = Comment.objects.create(author=request.user, suggestion=suggestion, body=body)
+    return JsonResponse({
+        "id": c.id,
+        "body": c.body,
+        "author": c.author.get_full_name() or c.author.username,
+        "created_at": c.created_at.isoformat(),
+    })
