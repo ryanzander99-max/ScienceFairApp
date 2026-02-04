@@ -57,6 +57,10 @@ class Suggestion(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['-created_at']),  # For list sorting
+            models.Index(fields=['author']),  # For user filtering
+        ]
 
     def vote_score(self):
         return self.votes.filter(value=1).count() - self.votes.filter(value=-1).count()
@@ -73,6 +77,10 @@ class SuggestionVote(models.Model):
 
     class Meta:
         unique_together = ("user", "suggestion")
+        indexes = [
+            models.Index(fields=['suggestion', 'value']),  # For vote counting
+            models.Index(fields=['user']),  # For user vote lookups
+        ]
 
 
 class Comment(models.Model):
@@ -84,6 +92,10 @@ class Comment(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=['suggestion']),  # For comment counting
+            models.Index(fields=['created_at']),  # For sorting
+        ]
 
 
 @receiver(post_save, sender=User)

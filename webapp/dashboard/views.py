@@ -2,6 +2,7 @@ import datetime
 import os
 
 from django.contrib import auth
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
@@ -168,14 +169,29 @@ def get_avatar_url(user):
 
 
 def api_suggestions(request):
-    """List all suggestions with vote counts and comment counts."""
-    sort = request.GET.get("sort", "hot")  # hot, new, top
-    suggestions = Suggestion.objects.select_related("author").all()
+    """List all suggestions with vote counts and comment counts.
 
-    # Build list with computed fields
+    Optimized: Uses annotations to compute scores in a single query
+    instead of N+1 queries (2 per suggestion for vote_score + comment_count).
+    """
+    sort = request.GET.get("sort", "hot")  # hot, new, top
+
+    # Single query with all computed fields via annotations
+    suggestions = Suggestion.objects.select_related("author").annotate(
+        upvotes=Count('votes', filter=Q(votes__value=1)),
+        downvotes=Count('votes', filter=Q(votes__value=-1)),
+        num_comments=Count('comments'),
+    ).all()
+
+    # Get user votes in one query if authenticated
+    user_votes = {}
+    if request.user.is_authenticated:
+        user_votes = {v.suggestion_id: v.value for v in SuggestionVote.objects.filter(user=request.user)}
+
+    # Build list with computed fields (no additional DB hits)
     items = []
     for s in suggestions:
-        score = s.vote_score()
+        score = s.upvotes - s.downvotes
         items.append({
             "id": s.id,
             "title": s.title,
@@ -184,15 +200,9 @@ def api_suggestions(request):
             "author_avatar": get_avatar_url(s.author),
             "created_at": s.created_at.isoformat(),
             "score": score,
-            "comment_count": s.comment_count(),
-            "user_vote": 0,
+            "comment_count": s.num_comments,
+            "user_vote": user_votes.get(s.id, 0),
         })
-
-    # Add user's vote if authenticated
-    if request.user.is_authenticated:
-        user_votes = {v.suggestion_id: v.value for v in SuggestionVote.objects.filter(user=request.user)}
-        for item in items:
-            item["user_vote"] = user_votes.get(item["id"], 0)
 
     # Sort
     if sort == "new":
@@ -286,9 +296,17 @@ def api_suggestion_vote(request, suggestion_id):
 
 
 def api_suggestion_detail(request, suggestion_id):
-    """Get a suggestion with all its comments."""
+    """Get a suggestion with all its comments.
+
+    Optimized: Uses annotations for vote score and prefetch for comments.
+    """
     try:
-        s = Suggestion.objects.get(id=suggestion_id)
+        s = Suggestion.objects.select_related("author").prefetch_related(
+            "comments__author"  # Prefetch comments with their authors
+        ).annotate(
+            upvotes=Count('votes', filter=Q(votes__value=1)),
+            downvotes=Count('votes', filter=Q(votes__value=-1)),
+        ).get(id=suggestion_id)
     except Suggestion.DoesNotExist:
         return JsonResponse({"error": "Suggestion not found"}, status=404)
 
@@ -298,17 +316,17 @@ def api_suggestion_detail(request, suggestion_id):
         if vote:
             user_vote = vote.value
 
-    comments = []
-    for c in s.comments.select_related("author").all():
-        comments.append({
-            "id": c.id,
-            "body": c.body,
-            "author": c.author.get_full_name() or c.author.username,
-            "author_avatar": get_avatar_url(c.author),
-            "created_at": c.created_at.isoformat(),
-        })
+    # Comments are already prefetched
+    comments = [{
+        "id": c.id,
+        "body": c.body,
+        "author": c.author.get_full_name() or c.author.username,
+        "author_avatar": get_avatar_url(c.author),
+        "created_at": c.created_at.isoformat(),
+    } for c in s.comments.all()]
 
     is_owner = request.user.is_authenticated and request.user == s.author
+    score = s.upvotes - s.downvotes
 
     return JsonResponse({
         "id": s.id,
@@ -317,7 +335,7 @@ def api_suggestion_detail(request, suggestion_id):
         "author": s.author.get_full_name() or s.author.username,
         "author_avatar": get_avatar_url(s.author),
         "created_at": s.created_at.isoformat(),
-        "score": s.vote_score(),
+        "score": score,
         "user_vote": user_vote,
         "comments": comments,
         "is_owner": is_owner,
