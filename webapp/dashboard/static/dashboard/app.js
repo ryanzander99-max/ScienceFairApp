@@ -37,6 +37,30 @@ document.querySelectorAll(".rnav").forEach(btn => {
     });
 });
 
+// ---- Account dropdown ----
+const accountToggle = document.getElementById("account-toggle");
+const accountMenu = document.getElementById("account-menu");
+
+if (accountToggle && accountMenu) {
+    accountToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        accountMenu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!accountMenu.contains(e.target) && !accountToggle.contains(e.target)) {
+            accountMenu.classList.remove("open");
+        }
+    });
+
+    // Settings button (placeholder for now)
+    document.getElementById("btn-settings")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        accountMenu.classList.remove("open");
+        alert("Settings page coming soon!");
+    });
+}
+
 // ---- Dashboard functions ----
 async function loadStations() {
     try {

@@ -68,13 +68,6 @@ body {
 
 .nav-icon { font-size: 22px; line-height: 1; }
 
-.nav-title {
-    font-weight: 800;
-    font-size: 17px;
-    letter-spacing: -0.03em;
-    color: #fafafa;
-}
-
 /* Main tabs */
 .nav-tabs {
     display: flex;
@@ -88,12 +81,17 @@ body {
 .tab {
     all: unset;
     cursor: pointer;
-    padding: 6px 18px;
+    padding: 8px 12px;
     border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
     color: #71717a;
     transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab svg {
+    display: block;
 }
 
 .tab:hover { color: #a1a1aa; background: #27272a; }
@@ -101,6 +99,110 @@ body {
 .tab-active {
     color: #fafafa !important;
     background: #3b82f6 !important;
+}
+
+/* Account dropdown */
+.account-dropdown {
+    position: relative;
+}
+
+.account-btn {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px 4px 4px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.account-btn:hover {
+    background: #27272a;
+}
+
+.account-avatar {
+    width: 32px;
+    height: 32px;
+    background: #3b82f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+}
+
+.account-btn svg {
+    color: #71717a;
+}
+
+.account-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    min-width: 220px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.15s;
+    z-index: 200;
+}
+
+.account-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.account-menu-header {
+    padding: 14px 16px;
+}
+
+.account-menu-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #fafafa;
+    margin-bottom: 2px;
+}
+
+.account-menu-email {
+    font-size: 12px;
+    color: #71717a;
+}
+
+.account-menu-divider {
+    height: 1px;
+    background: #27272a;
+}
+
+.account-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #a1a1aa;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.account-menu-item:hover {
+    background: #27272a;
+    color: #fafafa;
+}
+
+.account-menu-item svg {
+    flex-shrink: 0;
+}
+
+.account-menu-logout:hover {
+    color: #ef4444;
 }
 
 /* City pills */
