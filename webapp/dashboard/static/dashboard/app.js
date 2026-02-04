@@ -455,6 +455,9 @@ function initFeedbackBoard() {
     // Add comment
     document.getElementById("btn-add-comment")?.addEventListener("click", addComment);
 
+    // Delete suggestion
+    document.getElementById("btn-delete-suggestion")?.addEventListener("click", deleteSuggestion);
+
     // Load initial suggestions
     loadSuggestions();
 }
@@ -584,6 +587,15 @@ async function openSuggestionDetail(id) {
 
         document.getElementById("comment-input").value = "";
         document.getElementById("comment-error").style.display = "none";
+
+        // Show/hide delete button based on ownership
+        const deleteBtn = document.getElementById("btn-delete-suggestion");
+        if (s.is_owner) {
+            deleteBtn.classList.remove("hidden");
+        } else {
+            deleteBtn.classList.add("hidden");
+        }
+
         modal.style.display = "flex";
     } catch (e) {
         console.error("Failed to load suggestion:", e);
@@ -620,6 +632,31 @@ async function voteSuggestion(value) {
         }
     } catch (e) {
         console.error("Vote failed:", e);
+    }
+}
+
+async function deleteSuggestion() {
+    if (!currentSuggestionId) return;
+
+    if (!confirm("Are you sure you want to delete this suggestion? This cannot be undone.")) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/suggestions/${currentSuggestionId}/delete/`, {
+            method: "DELETE",
+        });
+        const data = await resp.json();
+
+        if (resp.ok) {
+            document.getElementById("modal-detail").style.display = "none";
+            loadSuggestions();
+        } else {
+            alert(data.error || "Failed to delete suggestion");
+        }
+    } catch (e) {
+        console.error("Delete failed:", e);
+        alert("Failed to delete suggestion");
     }
 }
 

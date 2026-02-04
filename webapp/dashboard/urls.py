@@ -15,4 +15,5 @@ urlpatterns = [
     path("api/suggestions/<int:suggestion_id>/", views.api_suggestion_detail),
     path("api/suggestions/<int:suggestion_id>/vote/", views.api_suggestion_vote),
     path("api/suggestions/<int:suggestion_id>/comments/", views.api_comment_create),
+    path("api/suggestions/<int:suggestion_id>/delete/", views.api_suggestion_delete),
 ]

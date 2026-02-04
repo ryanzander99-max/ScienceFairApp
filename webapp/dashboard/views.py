@@ -297,6 +297,8 @@ def api_suggestion_detail(request, suggestion_id):
             "created_at": c.created_at.isoformat(),
         })
 
+    is_owner = request.user.is_authenticated and request.user == s.author
+
     return JsonResponse({
         "id": s.id,
         "title": s.title,
@@ -306,6 +308,7 @@ def api_suggestion_detail(request, suggestion_id):
         "score": s.vote_score(),
         "user_vote": user_vote,
         "comments": comments,
+        "is_owner": is_owner,
     })
 
 
@@ -343,3 +346,23 @@ def api_comment_create(request, suggestion_id):
         "author": c.author.get_full_name() or c.author.username,
         "created_at": c.created_at.isoformat(),
     })
+
+
+@csrf_exempt
+def api_suggestion_delete(request, suggestion_id):
+    """Delete a suggestion. Only the author can delete."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE required"}, status=405)
+
+    try:
+        suggestion = Suggestion.objects.get(id=suggestion_id)
+    except Suggestion.DoesNotExist:
+        return JsonResponse({"error": "Suggestion not found"}, status=404)
+
+    if suggestion.author != request.user:
+        return JsonResponse({"error": "You can only delete your own suggestions"}, status=403)
+
+    suggestion.delete()
+    return JsonResponse({"ok": True})
