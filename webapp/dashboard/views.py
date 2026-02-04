@@ -159,10 +159,18 @@ def contains_profanity(text):
     return None
 
 
+def get_avatar_url(user):
+    """Generate avatar URL using UI Avatars API."""
+    import urllib.parse
+    name = user.get_full_name() or user.username or user.email.split("@")[0]
+    encoded_name = urllib.parse.quote(name)
+    return f"https://ui-avatars.com/api/?name={encoded_name}&background=3b82f6&color=fff&size=128&bold=true"
+
+
 def api_suggestions(request):
     """List all suggestions with vote counts and comment counts."""
     sort = request.GET.get("sort", "hot")  # hot, new, top
-    suggestions = Suggestion.objects.all()
+    suggestions = Suggestion.objects.select_related("author").all()
 
     # Build list with computed fields
     items = []
@@ -173,6 +181,7 @@ def api_suggestions(request):
             "title": s.title,
             "body": s.body,
             "author": s.author.get_full_name() or s.author.username,
+            "author_avatar": get_avatar_url(s.author),
             "created_at": s.created_at.isoformat(),
             "score": score,
             "comment_count": s.comment_count(),
@@ -235,6 +244,7 @@ def api_suggestion_create(request):
         "title": s.title,
         "body": s.body,
         "author": s.author.get_full_name() or s.author.username,
+        "author_avatar": get_avatar_url(s.author),
         "created_at": s.created_at.isoformat(),
         "score": 0,
         "comment_count": 0,
@@ -289,11 +299,12 @@ def api_suggestion_detail(request, suggestion_id):
             user_vote = vote.value
 
     comments = []
-    for c in s.comments.all():
+    for c in s.comments.select_related("author").all():
         comments.append({
             "id": c.id,
             "body": c.body,
             "author": c.author.get_full_name() or c.author.username,
+            "author_avatar": get_avatar_url(c.author),
             "created_at": c.created_at.isoformat(),
         })
 
@@ -304,6 +315,7 @@ def api_suggestion_detail(request, suggestion_id):
         "title": s.title,
         "body": s.body,
         "author": s.author.get_full_name() or s.author.username,
+        "author_avatar": get_avatar_url(s.author),
         "created_at": s.created_at.isoformat(),
         "score": s.vote_score(),
         "user_vote": user_vote,
@@ -344,6 +356,7 @@ def api_comment_create(request, suggestion_id):
         "id": c.id,
         "body": c.body,
         "author": c.author.get_full_name() or c.author.username,
+        "author_avatar": get_avatar_url(c.author),
         "created_at": c.created_at.isoformat(),
     })
 
@@ -365,4 +378,79 @@ def api_suggestion_delete(request, suggestion_id):
         return JsonResponse({"error": "You can only delete your own suggestions"}, status=403)
 
     suggestion.delete()
+    return JsonResponse({"ok": True})
+
+
+# ─────────────────────────────────────────────────────────────
+# Settings Page
+# ─────────────────────────────────────────────────────────────
+
+def settings_page(request):
+    """Render the settings page. Requires authentication."""
+    if not request.user.is_authenticated:
+        return redirect("/accounts/google/login/")
+    return render(request, "dashboard/settings.html")
+
+
+@csrf_exempt
+def api_update_profile(request):
+    """Update user's first and last name."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    import json
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+
+    if not first_name:
+        return JsonResponse({"error": "First name is required"}, status=400)
+
+    # Check for profanity in names
+    if contains_profanity(first_name) or contains_profanity(last_name):
+        return JsonResponse({"error": "Please use appropriate names"}, status=400)
+
+    request.user.first_name = first_name
+    request.user.last_name = last_name
+    request.user.save()
+
+    return JsonResponse({
+        "ok": True,
+        "first_name": request.user.first_name,
+        "last_name": request.user.last_name,
+        "full_name": request.user.get_full_name(),
+    })
+
+
+@csrf_exempt
+def api_delete_account(request):
+    """Delete user account and all associated data."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required"}, status=401)
+    if request.method != "DELETE":
+        return JsonResponse({"error": "DELETE required"}, status=405)
+
+    user = request.user
+
+    # Delete all user's suggestions (cascades to votes and comments on those suggestions)
+    Suggestion.objects.filter(author=user).delete()
+
+    # Delete all user's comments on other suggestions
+    Comment.objects.filter(author=user).delete()
+
+    # Delete all user's votes
+    SuggestionVote.objects.filter(user=user).delete()
+
+    # Log out the user before deleting
+    auth.logout(request)
+
+    # Delete the user account
+    user.delete()
+
     return JsonResponse({"ok": True})

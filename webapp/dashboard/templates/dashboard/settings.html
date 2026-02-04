@@ -1,0 +1,441 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — CLEAR25</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'dashboard/favicon.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}">
+    <style>
+        .settings-page {
+            min-height: 100vh;
+            background: #09090b;
+            padding: 40px 24px;
+        }
+
+        .settings-container {
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        .settings-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #71717a;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            transition: color 0.15s;
+        }
+
+        .settings-back:hover {
+            color: #fafafa;
+        }
+
+        .settings-header {
+            margin-bottom: 32px;
+        }
+
+        .settings-header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #fafafa;
+            margin-bottom: 8px;
+        }
+
+        .settings-header p {
+            color: #71717a;
+            font-size: 15px;
+        }
+
+        .settings-card {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .settings-card h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fafafa;
+            margin-bottom: 16px;
+        }
+
+        .settings-card p {
+            font-size: 14px;
+            color: #a1a1aa;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #a1a1aa;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #09090b;
+            border: 1px solid #3f3f46;
+            border-radius: 8px;
+            color: #fafafa;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-group input:disabled {
+            background: #1c1c20;
+            color: #71717a;
+            cursor: not-allowed;
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            all: unset;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-ghost {
+            background: #27272a;
+            color: #fafafa;
+        }
+
+        .btn-ghost:hover {
+            background: #3f3f46;
+        }
+
+        .success-msg, .error-msg {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .success-msg {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .danger-zone {
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .danger-zone h2 {
+            color: #ef4444;
+        }
+
+        /* Delete confirmation modal */
+        .delete-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            padding: 20px;
+        }
+
+        .delete-modal.open {
+            display: flex;
+        }
+
+        .delete-modal-box {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 28px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .delete-modal-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: #ef4444;
+        }
+
+        .delete-modal-box h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fafafa;
+            margin-bottom: 12px;
+        }
+
+        .delete-modal-box p {
+            font-size: 14px;
+            color: #a1a1aa;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .delete-modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        @media (max-width: 500px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .delete-modal-actions {
+                flex-direction: column;
+            }
+
+            .delete-modal-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-page">
+        <div class="settings-container">
+            <a href="/" class="settings-back">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                Back to Dashboard
+            </a>
+
+            <div class="settings-header">
+                <h1>Settings</h1>
+                <p>Manage your account preferences</p>
+            </div>
+
+            <!-- Profile Settings -->
+            <div class="settings-card">
+                <h2>Profile Information</h2>
+                <p>Update your name as it appears on the platform. This will be visible on your suggestions and comments.</p>
+
+                <form id="profile-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="first-name">First Name</label>
+                            <input type="text" id="first-name" value="{{ user.first_name }}" placeholder="Enter first name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="last-name">Last Name</label>
+                            <input type="text" id="last-name" value="{{ user.last_name }}" placeholder="Enter last name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" value="{{ user.email }}" disabled>
+                    </div>
+                    <div class="success-msg" id="profile-success">Your profile has been updated.</div>
+                    <div class="error-msg" id="profile-error"></div>
+                    <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="settings-card danger-zone">
+                <h2>Danger Zone</h2>
+                <p>Permanently delete your account and all associated data. This action cannot be undone. All your suggestions, comments, and votes will be removed.</p>
+                <button class="btn btn-danger" id="delete-account-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/>
+                        <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                    Delete Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="delete-modal" id="delete-modal">
+        <div class="delete-modal-box">
+            <div class="delete-modal-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <h3>Delete your account?</h3>
+            <p>This will permanently delete your account, all your suggestions, comments, and votes. This action cannot be undone.</p>
+            <div class="delete-modal-actions">
+                <button class="btn btn-ghost" id="cancel-delete">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete">Yes, delete my account</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Profile form
+        document.getElementById("profile-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const firstName = document.getElementById("first-name").value.trim();
+            const lastName = document.getElementById("last-name").value.trim();
+            const successEl = document.getElementById("profile-success");
+            const errorEl = document.getElementById("profile-error");
+            const btn = document.getElementById("save-profile-btn");
+
+            successEl.style.display = "none";
+            errorEl.style.display = "none";
+            btn.disabled = true;
+            btn.textContent = "Saving...";
+
+            try {
+                const resp = await fetch("/api/settings/profile/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ first_name: firstName, last_name: lastName }),
+                });
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    successEl.style.display = "block";
+                    setTimeout(() => { successEl.style.display = "none"; }, 3000);
+                } else {
+                    errorEl.textContent = data.error || "Failed to update profile";
+                    errorEl.style.display = "block";
+                }
+            } catch (err) {
+                errorEl.textContent = "Network error";
+                errorEl.style.display = "block";
+            }
+
+            btn.disabled = false;
+            btn.textContent = "Save Changes";
+        });
+
+        // Delete account modal
+        const deleteModal = document.getElementById("delete-modal");
+
+        document.getElementById("delete-account-btn").addEventListener("click", () => {
+            deleteModal.classList.add("open");
+        });
+
+        document.getElementById("cancel-delete").addEventListener("click", () => {
+            deleteModal.classList.remove("open");
+        });
+
+        deleteModal.addEventListener("click", (e) => {
+            if (e.target === deleteModal) {
+                deleteModal.classList.remove("open");
+            }
+        });
+
+        document.getElementById("confirm-delete").addEventListener("click", async () => {
+            const btn = document.getElementById("confirm-delete");
+            btn.disabled = true;
+            btn.textContent = "Deleting...";
+
+            try {
+                const resp = await fetch("/api/settings/delete-account/", {
+                    method: "DELETE",
+                });
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    window.location.href = "/";
+                } else {
+                    alert(data.error || "Failed to delete account");
+                    btn.disabled = false;
+                    btn.textContent = "Yes, delete my account";
+                }
+            } catch (err) {
+                alert("Network error");
+                btn.disabled = false;
+                btn.textContent = "Yes, delete my account";
+            }
+        });
+    </script>
+</body>
+</html>

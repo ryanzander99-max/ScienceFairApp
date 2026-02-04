@@ -52,13 +52,6 @@ if (accountToggle && accountMenu) {
             accountMenu.classList.remove("open");
         }
     });
-
-    // Settings button (placeholder for now)
-    document.getElementById("btn-settings")?.addEventListener("click", (e) => {
-        e.preventDefault();
-        accountMenu.classList.remove("open");
-        alert("Settings page coming soon!");
-    });
 }
 
 // ---- Dashboard functions ----
@@ -510,6 +503,7 @@ async function loadSuggestions() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                 </div>
+                <img src="${s.author_avatar}" alt="" class="suggestion-avatar">
                 <div class="suggestion-content">
                     <div class="suggestion-title">${escapeHtml(s.title)}</div>
                     <div class="suggestion-meta">
@@ -584,6 +578,7 @@ async function openSuggestionDetail(id) {
         const s = await resp.json();
 
         document.getElementById("detail-title").textContent = s.title;
+        document.getElementById("detail-avatar").src = s.author_avatar;
         document.getElementById("detail-author").textContent = s.author;
         document.getElementById("detail-date").textContent = timeAgo(s.created_at);
         document.getElementById("detail-body").textContent = s.body;
@@ -600,11 +595,14 @@ async function openSuggestionDetail(id) {
         } else {
             commentsEl.innerHTML = s.comments.map(c => `
                 <div class="comment-item">
-                    <div class="comment-header">
-                        <span class="comment-author">${escapeHtml(c.author)}</span>
-                        <span class="comment-date">${timeAgo(c.created_at)}</span>
+                    <img src="${c.author_avatar}" alt="" class="comment-avatar">
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-author">${escapeHtml(c.author)}</span>
+                            <span class="comment-date">${timeAgo(c.created_at)}</span>
+                        </div>
+                        <div class="comment-body">${escapeHtml(c.body)}</div>
                     </div>
-                    <div class="comment-body">${escapeHtml(c.body)}</div>
                 </div>
             `).join("");
         }
@@ -760,11 +758,14 @@ async function addComment() {
 
         commentsEl.insertAdjacentHTML("beforeend", `
             <div class="comment-item">
-                <div class="comment-header">
-                    <span class="comment-author">${escapeHtml(data.author)}</span>
-                    <span class="comment-date">just now</span>
+                <img src="${data.author_avatar}" alt="" class="comment-avatar">
+                <div class="comment-content">
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(data.author)}</span>
+                        <span class="comment-date">just now</span>
+                    </div>
+                    <div class="comment-body">${escapeHtml(data.body)}</div>
                 </div>
-                <div class="comment-body">${escapeHtml(data.body)}</div>
             </div>
         `);
 

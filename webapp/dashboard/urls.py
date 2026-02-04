@@ -16,4 +16,8 @@ urlpatterns = [
     path("api/suggestions/<int:suggestion_id>/vote/", views.api_suggestion_vote),
     path("api/suggestions/<int:suggestion_id>/comments/", views.api_comment_create),
     path("api/suggestions/<int:suggestion_id>/delete/", views.api_suggestion_delete),
+    # Settings
+    path("settings/", views.settings_page, name="settings"),
+    path("api/settings/profile/", views.api_update_profile),
+    path("api/settings/delete-account/", views.api_delete_account),
 ]
