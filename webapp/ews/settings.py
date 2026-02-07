@@ -6,12 +6,18 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-key-change-in-production")
 DEBUG = os.environ.get("DEBUG", "true").lower() == "true"
 
 # Security: Restrict allowed hosts in production
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
+]
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
-else:
+elif not ALLOWED_HOSTS:
+    # Default to allowing Vercel domains
     ALLOWED_HOSTS = [
-        h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
-    ] or ["localhost", "127.0.0.1"]
+        "localhost",
+        "127.0.0.1",
+        ".vercel.app",  # All Vercel preview/production domains
+    ]
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -30,16 +36,17 @@ INSTALLED_APPS = [
 SITE_ID = 1
 
 MIDDLEWARE = [
-    "dashboard.middleware.RequestSizeLimitMiddleware",  # Limit request size first
     "django.middleware.security.SecurityMiddleware",
-    "dashboard.middleware.SecurityHeadersMiddleware",  # Security headers
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "dashboard.middleware.RateLimitMiddleware",  # Rate limiting after auth
     "allauth.account.middleware.AccountMiddleware",
+    # Custom middleware (uncomment after testing):
+    # "dashboard.middleware.RequestSizeLimitMiddleware",
+    # "dashboard.middleware.SecurityHeadersMiddleware",
+    # "dashboard.middleware.RateLimitMiddleware",
 ]
 
 ROOT_URLCONF = "ews.urls"
@@ -208,7 +215,7 @@ SESSION_SAVE_EVERY_REQUEST = False  # Don't update session on every request
 # =============================================================================
 
 CSRF_COOKIE_SECURE = not DEBUG  # HTTPS only in production
-CSRF_COOKIE_HTTPONLY = True  # Prevent JavaScript access to CSRF token
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -217,6 +224,12 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 if DEBUG:
     CSRF_TRUSTED_ORIGINS += ["http://localhost:8000", "http://127.0.0.1:8000"]
+else:
+    # Add Vercel domains if no custom origins specified
+    if not CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS = [
+            "https://*.vercel.app",
+        ]
 
 # =============================================================================
 # ADDITIONAL SECURITY SETTINGS
