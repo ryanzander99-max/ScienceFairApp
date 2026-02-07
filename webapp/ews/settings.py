@@ -4,7 +4,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-key-change-in-production")
 DEBUG = os.environ.get("DEBUG", "true").lower() == "true"
-ALLOWED_HOSTS = ["*"]
+
+# Security: Restrict allowed hosts in production
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [
+        h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
+    ] or ["localhost", "127.0.0.1"]
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -23,12 +30,15 @@ INSTALLED_APPS = [
 SITE_ID = 1
 
 MIDDLEWARE = [
+    "dashboard.middleware.RequestSizeLimitMiddleware",  # Limit request size first
     "django.middleware.security.SecurityMiddleware",
+    "dashboard.middleware.SecurityHeadersMiddleware",  # Security headers
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "dashboard.middleware.RateLimitMiddleware",  # Rate limiting after auth
     "allauth.account.middleware.AccountMiddleware",
 ]
 
@@ -142,3 +152,102 @@ LOGGING = {
         "django": {"handlers": ["console"], "level": "ERROR", "propagate": False},
     },
 }
+
+# =============================================================================
+# CACHING CONFIGURATION
+# =============================================================================
+
+# Use Redis if available, otherwise local memory cache
+REDIS_URL = os.environ.get("REDIS_URL")
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "ews",
+            "TIMEOUT": 300,  # 5 minutes default
+            "OPTIONS": {
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ews-cache",
+            "TIMEOUT": 300,
+            "OPTIONS": {
+                "MAX_ENTRIES": 1000,
+            },
+        }
+    }
+
+# =============================================================================
+# SESSION SECURITY
+# =============================================================================
+
+# Use cache-backed sessions for better performance
+if REDIS_URL:
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
+else:
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+# Session cookie settings
+SESSION_COOKIE_SECURE = not DEBUG  # HTTPS only in production
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+SESSION_COOKIE_SAMESITE = "Lax"  # CSRF protection
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = False  # Don't update session on every request
+
+# =============================================================================
+# CSRF SECURITY
+# =============================================================================
+
+CSRF_COOKIE_SECURE = not DEBUG  # HTTPS only in production
+CSRF_COOKIE_HTTPONLY = True  # Prevent JavaScript access to CSRF token
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += ["http://localhost:8000", "http://127.0.0.1:8000"]
+
+# =============================================================================
+# ADDITIONAL SECURITY SETTINGS
+# =============================================================================
+
+# Security middleware settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+# HTTPS settings (production only)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "true").lower() == "true"
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# =============================================================================
+# PERFORMANCE SETTINGS
+# =============================================================================
+
+# Database connection pooling (already set CONN_MAX_AGE above)
+# Compress static files
+if not DEBUG:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

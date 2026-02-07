@@ -1,0 +1,111 @@
+"""
+Shared utilities for views: validation, sanitization, profanity filter.
+"""
+
+import json
+import re
+
+from django.http import JsonResponse
+
+
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+MAX_TITLE_LENGTH = 200
+MAX_BODY_LENGTH = 5000
+MAX_COMMENT_LENGTH = 2000
+MAX_NAME_LENGTH = 50
+
+VALID_NAME_PATTERN = re.compile(r'^[\w\s\-\'.]+$', re.UNICODE)
+
+# Profanity filter word list
+PROFANITY_LIST = [
+    "fuck", "shit", "ass", "bitch", "damn", "crap", "dick", "cock", "pussy",
+    "asshole", "bastard", "cunt", "fag", "faggot", "nigger", "nigga", "retard",
+    "whore", "slut", "piss", "bollocks", "wanker", "twat", "prick", "douche",
+]
+
+
+# =============================================================================
+# VALIDATION UTILITIES
+# =============================================================================
+
+def sanitize_text(text, max_length=None):
+    """Sanitize user input text.
+
+    - Strips whitespace
+    - Removes null bytes and control characters
+    - Truncates to max_length if specified
+    """
+    if not text:
+        return ""
+
+    text = str(text).strip()
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+
+    if max_length:
+        text = text[:max_length]
+
+    return text
+
+
+def validate_json_body(request, required_fields=None):
+    """Parse and validate JSON request body.
+
+    Returns (data, None) on success, (None, error_response) on failure.
+    """
+    try:
+        if not request.body:
+            return None, JsonResponse({"error": "Request body is empty"}, status=400)
+
+        data = json.loads(request.body)
+
+        if not isinstance(data, dict):
+            return None, JsonResponse({"error": "Request body must be a JSON object"}, status=400)
+
+        if required_fields:
+            missing = [f for f in required_fields if f not in data]
+            if missing:
+                return None, JsonResponse(
+                    {"error": f"Missing required fields: {', '.join(missing)}"},
+                    status=400
+                )
+
+        return data, None
+
+    except json.JSONDecodeError as e:
+        return None, JsonResponse({"error": f"Invalid JSON: {str(e)}"}, status=400)
+
+
+def validate_id(value, name="id"):
+    """Validate that a value is a positive integer ID."""
+    try:
+        id_val = int(value)
+        if id_val <= 0:
+            raise ValueError()
+        return id_val, None
+    except (ValueError, TypeError):
+        return None, JsonResponse({"error": f"Invalid {name}"}, status=400)
+
+
+def contains_profanity(text):
+    """Check if text contains profanity. Returns the matched word or None."""
+    text_lower = text.lower()
+    text_clean = text_lower.replace("@", "a").replace("$", "s").replace("0", "o").replace("1", "i").replace("3", "e")
+
+    for word in PROFANITY_LIST:
+        pattern = r'\b' + re.escape(word) + r'\b'
+        if re.search(pattern, text_clean):
+            return word
+        if word in text_clean:
+            return word
+    return None
+
+
+def get_avatar_url(user):
+    """Generate avatar URL using UI Avatars API."""
+    import urllib.parse
+    name = user.get_full_name() or user.username or user.email.split("@")[0]
+    encoded_name = urllib.parse.quote(name)
+    return f"https://ui-avatars.com/api/?name={encoded_name}&background=3b82f6&color=fff&size=128&bold=true"
