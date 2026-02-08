@@ -1000,8 +1000,19 @@ async function loadApiKeys() {
             const accentColor = API_KEY_COLORS[idx % API_KEY_COLORS.length];
             const keyId = k.key.substring(0, 8);
 
-            // Store reset time for countdown
-            apiKeyTimers[keyId] = now + (k.reset_seconds * 1000);
+            // Store reset time for countdown (only if there's an active window)
+            const hasActiveWindow = k.has_active_window && k.reset_seconds > 0;
+            if (hasActiveWindow) {
+                apiKeyTimers[keyId] = { resetTime: now + (k.reset_seconds * 1000), active: true };
+            } else {
+                apiKeyTimers[keyId] = { resetTime: 0, active: false };
+            }
+
+            // Initial timer text
+            const timerText = hasActiveWindow
+                ? `Resets in ${Math.floor(k.reset_seconds / 60)}m ${k.reset_seconds % 60}s`
+                : "Ready · No active rate limit";
+            const timerColor = hasActiveWindow ? "#71717a" : "#22c55e";
 
             return `
             <div class="api-key-item" style="background:${accentColor.bg};border:1px solid ${accentColor.border}40;border-left:3px solid ${accentColor.border};border-radius:8px;margin-bottom:12px;overflow:hidden;">
@@ -1030,7 +1041,7 @@ async function loadApiKeys() {
                     <div style="height:4px;background:#27272a;border-radius:2px;overflow:hidden;">
                         <div style="height:100%;width:${usagePercent}%;background:${usageColor};border-radius:2px;transition:width 0.3s;"></div>
                     </div>
-                    <div id="timer-${keyId}" style="font-size:10px;color:#71717a;margin-top:4px;">Resets in ${Math.floor(k.reset_seconds / 60)}m ${k.reset_seconds % 60}s</div>
+                    <div id="timer-${keyId}" style="font-size:10px;color:${timerColor};margin-top:4px;">${timerText}</div>
                 </div>
             </div>`;
         }).join("");
@@ -1046,25 +1057,38 @@ async function loadApiKeys() {
 function startApiKeyTimers() {
     if (apiKeyTimerInterval) clearInterval(apiKeyTimerInterval);
 
+    // Check if any keys have active windows
+    const hasActiveTimers = Object.values(apiKeyTimers).some(t => t.active);
+    if (!hasActiveTimers) {
+        console.log("[API Keys] No active rate limit windows, skipping timer");
+        return;
+    }
+
     console.log("[API Keys] Starting timer interval for keys:", Object.keys(apiKeyTimers));
 
     apiKeyTimerInterval = setInterval(() => {
         const now = Date.now();
-        let allExpired = true;
+        let allExpiredOrInactive = true;
 
-        for (const [keyId, resetTime] of Object.entries(apiKeyTimers)) {
+        for (const [keyId, timerData] of Object.entries(apiKeyTimers)) {
             const timerEl = document.getElementById(`timer-${keyId}`);
             if (!timerEl) {
                 console.warn(`[API Keys] Timer element not found: timer-${keyId}`);
                 continue;
             }
 
-            const remainingMs = resetTime - now;
+            // Skip inactive timers (no rate limit window)
+            if (!timerData.active) {
+                continue;
+            }
+
+            const remainingMs = timerData.resetTime - now;
             if (remainingMs <= 0) {
-                timerEl.textContent = "Rate limit reset!";
+                timerEl.textContent = "Ready · Rate limit reset";
                 timerEl.style.color = "#22c55e";
+                timerData.active = false; // Mark as inactive
             } else {
-                allExpired = false;
+                allExpiredOrInactive = false;
                 const seconds = Math.floor(remainingMs / 1000);
                 const mins = Math.floor(seconds / 60);
                 const secs = seconds % 60;
@@ -1072,8 +1096,8 @@ function startApiKeyTimers() {
             }
         }
 
-        // Stop interval if all timers expired
-        if (allExpired && Object.keys(apiKeyTimers).length > 0) {
+        // Stop interval if all timers expired or inactive
+        if (allExpiredOrInactive) {
             clearInterval(apiKeyTimerInterval);
             apiKeyTimerInterval = null;
         }

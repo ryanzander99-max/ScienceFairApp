@@ -188,12 +188,13 @@ def api_create_key(request):
         for ak in api_keys:
             # Calculate remaining requests
             now = timezone.now()
-            if ak.hour_started and (now - ak.hour_started).total_seconds() < 3600:
+            has_active_window = ak.hour_started and (now - ak.hour_started).total_seconds() < 3600
+            if has_active_window:
                 requests_used = ak.requests_this_hour
                 reset_seconds = int(3600 - (now - ak.hour_started).total_seconds())
             else:
                 requests_used = 0
-                reset_seconds = 3600
+                reset_seconds = 0  # No active window
             remaining = max(0, APIKey.RATE_LIMIT - requests_used)
 
             keys.append({
@@ -205,6 +206,7 @@ def api_create_key(request):
                 "requests_used": requests_used,
                 "requests_remaining": remaining,
                 "reset_seconds": reset_seconds,
+                "has_active_window": has_active_window,
             })
         return JsonResponse({"keys": keys})
 
