@@ -81,7 +81,7 @@ function renderTable(results) {
         const city = st.target_city || "";
         if (city !== currentCity) {
             currentCity = city;
-            html += `<div class="tier-sep" style="color:#3b82f6;font-size:13px;padding:12px 20px 6px;">${city}</div>`;
+            html += `<div class="tier-sep" style="color:#fff;font-size:13px;padding:12px 20px 6px;">${city}</div>`;
         }
 
         const r = resultMap[st.id + city] || (results ? results.find(x => x.id === st.id && x.target_city === city) : null);
@@ -123,7 +123,7 @@ function updateCityCards(results, cityAlerts) {
         const detailEl = card.querySelector(".city-card-detail");
 
         if (!results || results.length === 0) {
-            card.style.setProperty("--card-color", "#3b82f6");
+            card.style.setProperty("--card-color", "#fff");
             card.style.borderColor = "#27272a";
             levelEl.textContent = "Waiting for data";
             levelEl.style.color = "#fafafa";
@@ -133,7 +133,7 @@ function updateCityCards(results, cityAlerts) {
 
         const cityResults = results.filter(r => r.target_city === city);
         if (cityResults.length === 0) {
-            card.style.setProperty("--card-color", "#3b82f6");
+            card.style.setProperty("--card-color", "#fff");
             card.style.borderColor = "#27272a";
             levelEl.textContent = "No data";
             levelEl.style.color = "#71717a";
@@ -249,9 +249,9 @@ function createCircleIcon(color, size, pulse) {
 }
 
 function getCityAlertInfo(results, cityName) {
-    if (!results) return { color: "#3b82f6", level: "No Data", predicted: null, hex: "#3b82f6" };
+    if (!results) return { color: "#fff", level: "No Data", predicted: null, hex: "#fff" };
     const cityResults = results.filter(r => r.target_city === cityName);
-    if (cityResults.length === 0) return { color: "#3b82f6", level: "No Data", predicted: null, hex: "#3b82f6" };
+    if (cityResults.length === 0) return { color: "#fff", level: "No Data", predicted: null, hex: "#fff" };
 
     // Use city-level alert if available
     const alert = lastCityAlerts && lastCityAlerts[cityName];
@@ -296,7 +296,7 @@ function updateMapMarkers(results) {
     for (const [name, info] of Object.entries(citiesInfo)) {
         const alert = getCityAlertInfo(results, name);
         const hasData = alert.predicted !== null;
-        const dotColor = hasData ? alert.color : "#3b82f6";
+        const dotColor = hasData ? alert.color : "#fff";
 
         const m = L.marker([info.lat, info.lon], {
             icon: L.divIcon({

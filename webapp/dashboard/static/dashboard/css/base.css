@@ -95,9 +95,9 @@ body {
 .sidebar-tab:hover svg { transform: scale(1.1); }
 
 .sidebar-tab.tab-active {
-    color: #fff;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    color: #000;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .sidebar-bottom {

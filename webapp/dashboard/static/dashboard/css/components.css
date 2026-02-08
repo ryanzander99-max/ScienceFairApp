@@ -22,14 +22,14 @@
 .account-avatar {
     width: 32px;
     height: 32px;
-    background: #3b82f6;
+    background: #fff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
     font-size: 14px;
-    color: #fff;
+    color: #000;
 }
 
 .account-btn svg { color: #71717a; }
@@ -140,8 +140,8 @@
     transition: all 0.15s;
 }
 
-.action-primary { background: #3b82f6; color: white; }
-.action-primary:hover { background: #2563eb; }
+.action-primary { background: #fff; color: #000; }
+.action-primary:hover { background: rgba(255,255,255,0.8); }
 .action-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .action-ghost { background: #27272a; color: #fafafa; border: 1px solid #3f3f46; }
 .action-ghost:hover { background: #3f3f46; }
@@ -262,7 +262,7 @@
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: #fff;
 }
 
 .form-group textarea {
@@ -304,13 +304,13 @@
 .auth-link:hover { color: #fafafa; background: #27272a; }
 
 .auth-link-primary {
-    color: #fafafa;
-    background: #3b82f6;
+    color: #000;
+    background: #fff;
 }
 
 .auth-link-primary:hover {
-    background: #2563eb;
-    color: #fafafa;
+    background: rgba(255,255,255,0.8);
+    color: #000;
 }
 
 .auth-page {
@@ -380,7 +380,7 @@
     transition: border-color 0.15s;
 }
 
-.auth-input:focus { border-color: #3b82f6; }
+.auth-input:focus { border-color: #fff; }
 
 .auth-submit {
     all: unset;
@@ -389,8 +389,8 @@
     width: 100%;
     text-align: center;
     padding: 11px;
-    background: #3b82f6;
-    color: white;
+    background: #fff;
+    color: #000;
     font-family: 'Inter', sans-serif;
     font-size: 14px;
     font-weight: 600;
@@ -399,7 +399,7 @@
     transition: background 0.15s;
 }
 
-.auth-submit:hover { background: #2563eb; }
+.auth-submit:hover { background: rgba(255,255,255,0.8); }
 
 .auth-footer {
     text-align: center;
@@ -409,7 +409,7 @@
 }
 
 .auth-footer a {
-    color: #3b82f6;
+    color: #fff;
     text-decoration: none;
     font-weight: 600;
 }
@@ -485,7 +485,7 @@
 .progress-fill {
     height: 100%;
     width: 0%;
-    background: #3b82f6;
+    background: #fff;
     border-radius: 3px;
     transition: width 0.3s ease;
 }
