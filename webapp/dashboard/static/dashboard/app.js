@@ -918,13 +918,13 @@ let apiKeysLoaded = false;
 let apiKeyTimers = {}; // Store reset times for countdown
 let apiKeyTimerInterval = null;
 
-// Accent colors for API keys
+// Accent colors for API keys (Vercel-style dark backgrounds)
 const API_KEY_COLORS = [
-    { border: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)" },   // Blue
-    { border: "#8b5cf6", bg: "rgba(139, 92, 246, 0.1)" },   // Purple
-    { border: "#06b6d4", bg: "rgba(6, 182, 212, 0.1)" },    // Cyan
-    { border: "#10b981", bg: "rgba(16, 185, 129, 0.1)" },   // Emerald
-    { border: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)" },   // Amber
+    { border: "#3b82f6", bg: "#0a0a0a" },   // Blue
+    { border: "#8b5cf6", bg: "#0a0a0a" },   // Purple
+    { border: "#06b6d4", bg: "#0a0a0a" },   // Cyan
+    { border: "#10b981", bg: "#0a0a0a" },   // Emerald
+    { border: "#f59e0b", bg: "#0a0a0a" },   // Amber
 ];
 
 // Toast notification helper
