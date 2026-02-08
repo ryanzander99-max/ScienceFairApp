@@ -952,9 +952,19 @@ function showToast(message, type = "success") {
     }, 3000);
 }
 
+async function refreshApiKeysWithSpin() {
+    const icon = document.getElementById("refresh-icon");
+    if (icon) {
+        icon.style.transform = "rotate(360deg)";
+        setTimeout(() => icon.style.transform = "", 500);
+    }
+    await loadApiKeys();
+}
+
 async function loadApiKeys() {
     const listEl = document.getElementById("api-keys-list");
     const emptyEl = document.getElementById("api-keys-empty");
+    const updatedEl = document.getElementById("api-keys-updated");
     if (!listEl) return;
 
     // Clear existing timer interval
@@ -973,7 +983,12 @@ async function loadApiKeys() {
             return;
         }
 
-        const keysResp = await fetch("/api/v1/keys/create/", { method: "GET" });
+        // Add cache-busting to prevent stale data
+        const keysResp = await fetch(`/api/v1/keys/create/?_=${Date.now()}`, {
+            method: "GET",
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache" }
+        });
         if (!keysResp.ok) {
             if (emptyEl) emptyEl.textContent = "Failed to load API keys";
             return;
@@ -981,6 +996,11 @@ async function loadApiKeys() {
 
         const data = await keysResp.json();
         const keys = data.keys || [];
+
+        // Debug logging
+        keys.forEach(k => {
+            console.log(`[API Key ${k.key.substring(0,8)}] requests_used=${k.requests_used}, rate_limit=${k.rate_limit}, has_active_window=${k.has_active_window}`);
+        });
 
         if (keys.length === 0) {
             if (emptyEl) {
@@ -998,6 +1018,7 @@ async function loadApiKeys() {
         listEl.innerHTML = keys.map((k, idx) => {
             const usagePercent = Math.round((k.requests_used / k.rate_limit) * 100);
             const usageColor = usagePercent > 80 ? "#ef4444" : usagePercent > 50 ? "#eab308" : "#22c55e";
+            console.log(`[API Key ${k.key.substring(0,8)}] usagePercent=${usagePercent}%, color=${usageColor}`);
             const accentColor = API_KEY_COLORS[idx % API_KEY_COLORS.length];
             const keyId = k.key.substring(0, 8);
 
@@ -1049,6 +1070,12 @@ async function loadApiKeys() {
 
         // Start countdown timer
         startApiKeyTimers();
+
+        // Show last updated time
+        if (updatedEl) {
+            const now = new Date();
+            updatedEl.textContent = `Updated ${now.toLocaleTimeString()}`;
+        }
     } catch (e) {
         console.error("Failed to load API keys:", e);
         if (emptyEl) emptyEl.textContent = "Failed to load API keys";
