@@ -9,7 +9,7 @@ if webapp_dir not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ews.settings")
 
 from django.core.wsgi import get_wsgi_application
-app = get_wsgi_application()
+application = get_wsgi_application()
 
 # Run migrations at runtime if tables are missing (Vercel serverless)
 _migrated = False
