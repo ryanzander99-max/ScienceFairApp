@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}?v=31">
+    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}?v=32">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -645,7 +645,7 @@
                                     Loading...
                                 </div>
                             </div>
-                            <button class="action-btn action-primary" onclick="createApiKey()" style="margin-top:16px;">
+                            <button class="action-btn action-primary" id="btn-create-api-key" style="margin-top:16px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                                 Create API Key
                             </button>
@@ -778,20 +778,69 @@
                     <div class="research-card">
                         <h2 class="research-subtitle">Rate Limits & Errors</h2>
                         <ul class="method-list">
-                            <li>100 requests per hour per API key</li>
+                            <li><strong>100 requests per hour</strong> — limit applies per API key, not per user</li>
                             <li>Data refreshes every 30 minutes</li>
                             <li><code>401</code> — Missing or invalid API key</li>
-                            <li><code>429</code> — Rate limit exceeded</li>
+                            <li><code>429</code> — Rate limit exceeded (check <code>X-RateLimit-Reset</code> header)</li>
                         </ul>
+                        <p style="margin-top:12px;color:#71717a;font-size:13px;">Rate limit headers are included in all API responses: <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></p>
                     </div>
                 </div>
+
+                <!-- Create API Key Modal -->
+                <div id="modal-create-key" class="modal-overlay" style="display:none;">
+                    <div class="modal-box modal-box-sm">
+                        <div class="modal-header">
+                            <h3>Create API Key</h3>
+                            <button class="modal-close" id="modal-create-key-close">&times;</button>
+                        </div>
+                        <div class="modal-body" style="padding:20px;">
+                            <label style="display:block;font-size:13px;color:#a1a1aa;margin-bottom:8px;">Key Name (optional)</label>
+                            <input type="text" id="api-key-name" placeholder="e.g., Production App, Testing" style="width:100%;padding:10px 12px;background:#18181b;border:1px solid #27272a;border-radius:6px;color:#fff;font-size:14px;">
+                            <p style="font-size:12px;color:#71717a;margin-top:8px;">Give your key a name to help identify it later.</p>
+                            <div id="create-key-error" class="form-error mt-3" style="display:none;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="action-btn action-secondary" id="modal-create-key-cancel">Cancel</button>
+                            <button class="action-btn action-primary" id="modal-create-key-submit">Create Key</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New API Key Display Modal -->
+                <div id="modal-new-key" class="modal-overlay" style="display:none;">
+                    <div class="modal-box modal-box-sm">
+                        <div class="modal-header">
+                            <h3>API Key Created</h3>
+                        </div>
+                        <div class="modal-body" style="padding:20px;text-align:center;">
+                            <div style="width:48px;height:48px;background:#22c55e20;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <p style="color:#a1a1aa;margin-bottom:16px;">Your new API key has been created. Copy it now — you won't be able to see it again!</p>
+                            <div style="background:#000;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:16px;">
+                                <code id="new-key-display" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#22c55e;word-break:break-all;"></code>
+                            </div>
+                            <button class="action-btn action-primary" id="copy-new-key" style="width:100%;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                Copy to Clipboard
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="action-btn action-secondary" id="modal-new-key-done" style="width:100%;">Done</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toast notification container -->
+                <div id="toast-container" style="position:fixed;bottom:24px;right:24px;z-index:10000;"></div>
             </div>
 
         </main>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="{% static 'dashboard/app.js' %}?v=20"></script>
+    <script src="{% static 'dashboard/app.js' %}?v=21"></script>
     <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
 </html>

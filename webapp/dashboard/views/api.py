@@ -38,13 +38,29 @@ def require_api_key(view_func):
         key = auth_header[7:]  # Strip "Bearer "
         try:
             api_key = APIKey.objects.get(key=key, is_active=True)
-            api_key.last_used = timezone.now()
-            api_key.save(update_fields=["last_used"])
-            request.api_key = api_key
         except APIKey.DoesNotExist:
             return JsonResponse({"error": "Invalid API key"}, status=401)
 
-        return view_func(request, *args, **kwargs)
+        # Check rate limit
+        allowed, remaining, reset = api_key.check_rate_limit()
+        if not allowed:
+            response = JsonResponse({
+                "error": "Rate limit exceeded",
+                "retry_after": reset
+            }, status=429)
+            response["X-RateLimit-Limit"] = str(APIKey.RATE_LIMIT)
+            response["X-RateLimit-Remaining"] = "0"
+            response["X-RateLimit-Reset"] = str(reset)
+            return response
+
+        request.api_key = api_key
+        response = view_func(request, *args, **kwargs)
+
+        # Add rate limit headers to successful responses
+        response["X-RateLimit-Limit"] = str(APIKey.RATE_LIMIT)
+        response["X-RateLimit-Remaining"] = str(remaining)
+        response["X-RateLimit-Reset"] = str(reset)
+        return response
     return wrapper
 
 
@@ -165,15 +181,31 @@ def api_create_key(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=401)
 
-    # GET: List user's API keys
+    # GET: List user's API keys with rate limit info
     if request.method == "GET":
-        keys = list(request.user.api_keys.filter(is_active=True).values(
-            "key", "name", "created_at", "last_used"
-        ))
-        # Convert datetimes to ISO format
-        for k in keys:
-            k["created_at"] = k["created_at"].isoformat() if k["created_at"] else None
-            k["last_used"] = k["last_used"].isoformat() if k["last_used"] else None
+        api_keys = request.user.api_keys.filter(is_active=True)
+        keys = []
+        for ak in api_keys:
+            # Calculate remaining requests
+            now = timezone.now()
+            if ak.hour_started and (now - ak.hour_started).total_seconds() < 3600:
+                requests_used = ak.requests_this_hour
+                reset_seconds = int(3600 - (now - ak.hour_started).total_seconds())
+            else:
+                requests_used = 0
+                reset_seconds = 3600
+            remaining = max(0, APIKey.RATE_LIMIT - requests_used)
+
+            keys.append({
+                "key": ak.key,
+                "name": ak.name,
+                "created_at": ak.created_at.isoformat() if ak.created_at else None,
+                "last_used": ak.last_used.isoformat() if ak.last_used else None,
+                "rate_limit": APIKey.RATE_LIMIT,
+                "requests_used": requests_used,
+                "requests_remaining": remaining,
+                "reset_seconds": reset_seconds,
+            })
         return JsonResponse({"keys": keys})
 
     # POST: Create new key

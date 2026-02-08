@@ -1802,6 +1802,20 @@ body {
 }
 
 /* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* ============================================================
    RESPONSIVE STYLES — Media queries for all breakpoints
    ============================================================ */
 

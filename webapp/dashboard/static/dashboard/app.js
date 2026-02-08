@@ -819,6 +819,30 @@ function timeAgo(isoString) {
 
 let apiKeysLoaded = false;
 
+// Toast notification helper
+function showToast(message, type = "success") {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    const bgColor = type === "error" ? "#7f1d1d" : type === "warning" ? "#78350f" : "#14532d";
+    const borderColor = type === "error" ? "#991b1b" : type === "warning" ? "#92400e" : "#166534";
+    toast.style.cssText = `background:${bgColor};border:1px solid ${borderColor};color:#fff;padding:12px 16px;border-radius:8px;margin-top:8px;font-size:13px;display:flex;align-items:center;gap:8px;animation:slideIn 0.2s ease;box-shadow:0 4px 12px rgba(0,0,0,0.3);`;
+    toast.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            ${type === "error" ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' :
+              type === "warning" ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' :
+              '<polyline points="20 6 9 17 4 12"/>'}
+        </svg>
+        ${escapeHtml(message)}
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = "slideOut 0.2s ease";
+        setTimeout(() => toast.remove(), 200);
+    }, 3000);
+}
+
 async function loadApiKeys() {
     const listEl = document.getElementById("api-keys-list");
     const emptyEl = document.getElementById("api-keys-empty");
@@ -833,7 +857,6 @@ async function loadApiKeys() {
             return;
         }
 
-        // Fetch user's API keys
         const keysResp = await fetch("/api/v1/keys/create/", { method: "GET" });
         if (!keysResp.ok) {
             if (emptyEl) emptyEl.textContent = "Failed to load API keys";
@@ -848,83 +871,138 @@ async function loadApiKeys() {
             return;
         }
 
-        listEl.innerHTML = keys.map(k => `
-            <div class="api-key-item" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:8px;">
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:500;color:#fafafa;margin-bottom:4px;">${escapeHtml(k.name || 'Unnamed key')}</div>
-                    <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#71717a;word-break:break-all;">${k.key.substring(0, 16)}...${k.key.substring(k.key.length - 8)}</code>
-                    <div style="font-size:11px;color:#52525b;margin-top:4px;">Created ${timeAgo(k.created_at)}${k.last_used ? ' · Last used ' + timeAgo(k.last_used) : ''}</div>
+        listEl.innerHTML = keys.map(k => {
+            const usagePercent = Math.round((k.requests_used / k.rate_limit) * 100);
+            const usageColor = usagePercent > 80 ? "#ef4444" : usagePercent > 50 ? "#eab308" : "#22c55e";
+            return `
+            <div class="api-key-item" style="background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:12px;overflow:hidden;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:500;color:#fafafa;margin-bottom:4px;">${escapeHtml(k.name || 'Unnamed key')}</div>
+                        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#71717a;word-break:break-all;">${k.key.substring(0, 12)}...${k.key.substring(k.key.length - 6)}</code>
+                        <div style="font-size:11px;color:#52525b;margin-top:4px;">Created ${timeAgo(k.created_at)}${k.last_used ? ' · Last used ' + timeAgo(k.last_used) : ''}</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-left:16px;">
+                        <button onclick="copyApiKey('${k.key}')" class="action-btn action-secondary" style="padding:6px 12px;font-size:12px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy
+                        </button>
+                        <button onclick="revokeApiKey('${k.key}')" class="action-btn" style="padding:6px 12px;font-size:12px;background:#7f1d1d;border-color:#991b1b;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Revoke
+                        </button>
+                    </div>
                 </div>
-                <div style="display:flex;gap:8px;margin-left:16px;">
-                    <button onclick="copyApiKey('${k.key}')" class="action-btn action-secondary" style="padding:6px 12px;font-size:12px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        Copy
-                    </button>
-                    <button onclick="revokeApiKey('${k.key}')" class="action-btn" style="padding:6px 12px;font-size:12px;background:#7f1d1d;border-color:#991b1b;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        Revoke
-                    </button>
+                <div style="padding:8px 16px 12px;border-top:1px solid #27272a;background:#09090b;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:11px;color:#71717a;">Rate Limit</span>
+                        <span style="font-size:11px;color:${usageColor};font-family:'JetBrains Mono',monospace;">${k.requests_used}/${k.rate_limit} requests/hr</span>
+                    </div>
+                    <div style="height:4px;background:#27272a;border-radius:2px;overflow:hidden;">
+                        <div style="height:100%;width:${usagePercent}%;background:${usageColor};border-radius:2px;transition:width 0.3s;"></div>
+                    </div>
+                    <div style="font-size:10px;color:#52525b;margin-top:4px;">Resets in ${Math.floor(k.reset_seconds / 60)}m ${k.reset_seconds % 60}s</div>
                 </div>
-            </div>
-        `).join("");
+            </div>`;
+        }).join("");
     } catch (e) {
         console.error("Failed to load API keys:", e);
         if (emptyEl) emptyEl.textContent = "Failed to load API keys";
     }
 }
 
-async function createApiKey() {
-    const name = prompt("Enter a name for this API key (optional):", "");
-    if (name === null) return; // User cancelled
+function openCreateKeyModal() {
+    document.getElementById("api-key-name").value = "";
+    document.getElementById("create-key-error").style.display = "none";
+    document.getElementById("modal-create-key").style.display = "flex";
+    document.getElementById("api-key-name").focus();
+}
+
+async function submitCreateKey() {
+    const name = document.getElementById("api-key-name").value.trim();
+    const errorEl = document.getElementById("create-key-error");
 
     try {
         const resp = await fetch("/api/v1/keys/create/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name || "" }),
+            body: JSON.stringify({ name }),
         });
         const data = await resp.json();
 
         if (!resp.ok) {
-            alert(data.error || "Failed to create API key");
+            errorEl.textContent = data.error || "Failed to create API key";
+            errorEl.style.display = "block";
             return;
         }
 
-        // Show the new key (only shown once!)
-        const key = data.key;
-        const copyPrompt = `Your new API key:\n\n${key}\n\nCopy this key now — you won't be able to see it again!`;
+        // Close create modal
+        document.getElementById("modal-create-key").style.display = "none";
 
-        if (navigator.clipboard) {
-            await navigator.clipboard.writeText(key);
-            alert(copyPrompt + "\n\n✓ Key copied to clipboard!");
-        } else {
-            alert(copyPrompt);
-        }
+        // Show new key modal
+        document.getElementById("new-key-display").textContent = data.key;
+        document.getElementById("modal-new-key").style.display = "flex";
 
-        loadApiKeys(); // Refresh list
+        loadApiKeys();
     } catch (e) {
         console.error("Failed to create API key:", e);
-        alert("Failed to create API key");
+        errorEl.textContent = "Network error";
+        errorEl.style.display = "block";
+    }
+}
+
+async function copyNewKey() {
+    const key = document.getElementById("new-key-display").textContent;
+    try {
+        await navigator.clipboard.writeText(key);
+        const btn = document.getElementById("copy-new-key");
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+        btn.style.background = "#166534";
+        setTimeout(() => {
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy to Clipboard';
+            btn.style.background = "";
+        }, 2000);
+    } catch (e) {
+        showToast("Failed to copy to clipboard", "error");
     }
 }
 
 async function copyApiKey(key) {
     try {
         await navigator.clipboard.writeText(key);
-        // Brief visual feedback
-        const btn = event.target.closest("button");
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
-        setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+        showToast("API key copied to clipboard");
     } catch (e) {
-        alert("Failed to copy to clipboard");
+        showToast("Failed to copy to clipboard", "error");
     }
 }
 
 async function revokeApiKey(key) {
-    if (!confirm("Are you sure you want to revoke this API key? This cannot be undone.")) {
-        return;
-    }
+    // Create a confirmation modal inline
+    const confirmed = await new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.style.display = "flex";
+        overlay.innerHTML = `
+            <div class="modal-box modal-box-sm">
+                <div class="modal-header">
+                    <h3>Revoke API Key?</h3>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <p style="color:#a1a1aa;">This will permanently disable this API key. Any applications using it will stop working.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="action-btn action-secondary" id="revoke-cancel">Cancel</button>
+                    <button class="action-btn" style="background:#7f1d1d;border-color:#991b1b;" id="revoke-confirm">Revoke Key</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector("#revoke-cancel").onclick = () => { overlay.remove(); resolve(false); };
+        overlay.querySelector("#revoke-confirm").onclick = () => { overlay.remove(); resolve(true); };
+        overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+    });
+
+    if (!confirmed) return;
 
     try {
         const resp = await fetch("/api/v1/keys/revoke/", {
@@ -935,15 +1013,47 @@ async function revokeApiKey(key) {
         const data = await resp.json();
 
         if (!resp.ok) {
-            alert(data.error || "Failed to revoke API key");
+            showToast(data.error || "Failed to revoke API key", "error");
             return;
         }
 
-        loadApiKeys(); // Refresh list
+        showToast("API key revoked");
+        loadApiKeys();
     } catch (e) {
         console.error("Failed to revoke API key:", e);
-        alert("Failed to revoke API key");
+        showToast("Failed to revoke API key", "error");
     }
+}
+
+// Initialize API key modal handlers
+function initApiKeyModals() {
+    // Create key modal
+    document.getElementById("btn-create-api-key")?.addEventListener("click", openCreateKeyModal);
+    document.getElementById("modal-create-key-close")?.addEventListener("click", () => {
+        document.getElementById("modal-create-key").style.display = "none";
+    });
+    document.getElementById("modal-create-key-cancel")?.addEventListener("click", () => {
+        document.getElementById("modal-create-key").style.display = "none";
+    });
+    document.getElementById("modal-create-key-submit")?.addEventListener("click", submitCreateKey);
+
+    // New key modal
+    document.getElementById("copy-new-key")?.addEventListener("click", copyNewKey);
+    document.getElementById("modal-new-key-done")?.addEventListener("click", () => {
+        document.getElementById("modal-new-key").style.display = "none";
+    });
+
+    // Close on overlay click
+    document.getElementById("modal-create-key")?.addEventListener("click", (e) => {
+        if (e.target.classList.contains("modal-overlay")) {
+            e.target.style.display = "none";
+        }
+    });
+
+    // Enter key submits
+    document.getElementById("api-key-name")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitCreateKey();
+    });
 }
 
 // Load API keys when switching to API tab
@@ -952,6 +1062,7 @@ document.querySelectorAll(".sidebar-tab").forEach(t => {
         if (t.dataset.tab === "api" && !apiKeysLoaded) {
             apiKeysLoaded = true;
             loadApiKeys();
+            initApiKeyModals();
         }
     });
 });

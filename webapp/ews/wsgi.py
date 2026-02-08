@@ -30,7 +30,10 @@ def _ensure_migrated():
         ReadingSnapshot.objects.count()
         CachedResult.objects.count()
         Suggestion.objects.count()
-        APIKey.objects.count()
+        # Check APIKey exists and has rate limit fields
+        ak = APIKey.objects.first()
+        if ak:
+            _ = ak.requests_this_hour  # Check new field exists
     except Exception:
         needs_migrate = True
     if needs_migrate:

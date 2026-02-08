@@ -40,11 +40,35 @@ class APIKey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_used = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    # Rate limiting (per key)
+    requests_this_hour = models.IntegerField(default=0)
+    hour_started = models.DateTimeField(null=True, blank=True)
+
+    RATE_LIMIT = 100  # requests per hour per key
 
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = secrets.token_hex(32)  # 64-char hex string
         super().save(*args, **kwargs)
+
+    def check_rate_limit(self):
+        """Check and update rate limit. Returns (allowed, remaining, reset_seconds)."""
+        now = timezone.now()
+        # Reset if hour has passed
+        if not self.hour_started or (now - self.hour_started).total_seconds() >= 3600:
+            self.hour_started = now
+            self.requests_this_hour = 0
+
+        remaining = max(0, self.RATE_LIMIT - self.requests_this_hour)
+        reset_seconds = int(3600 - (now - self.hour_started).total_seconds())
+
+        if self.requests_this_hour >= self.RATE_LIMIT:
+            return False, 0, reset_seconds
+
+        self.requests_this_hour += 1
+        self.last_used = now
+        self.save(update_fields=["requests_this_hour", "hour_started", "last_used"])
+        return True, remaining - 1, reset_seconds
 
     def __str__(self):
         return f"{self.name or 'API Key'} ({self.key[:8]}...)"
