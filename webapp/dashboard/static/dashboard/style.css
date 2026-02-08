@@ -109,6 +109,10 @@ body {
     white-space: nowrap;
 }
 
+.sidebar-link {
+    text-decoration: none;
+}
+
 .sidebar-tab:hover {
     color: #fafafa;
     background: rgba(255,255,255,0.05);
