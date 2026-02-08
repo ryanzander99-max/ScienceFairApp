@@ -36,7 +36,7 @@ RULE2_PRIMARY = 35      # Dual-station: Station A sustained threshold
 RULE2_SECONDARY = 25    # Dual-station: Station B corroboration threshold
 
 # Station IDs to exclude (too far from target city to be useful)
-EXCLUDED_STATION_IDS = {"50308", "50314"}
+EXCLUDED_STATION_IDS = {"50308", "50310", "50314"}
 
 CITIES = {
     "Toronto":   {"label": "Toronto",   "lat": 43.7479, "lon": -79.2741},
