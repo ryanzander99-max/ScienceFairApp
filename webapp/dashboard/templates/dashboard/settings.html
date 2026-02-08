@@ -140,12 +140,13 @@
         }
 
         .btn-primary {
-            background: #fff;
-            color: #000;
+            background: var(--accent-color, #71717a);
+            color: var(--accent-text, #000);
+            transition: background 0.3s ease;
         }
 
         .btn-primary:hover {
-            background: rgba(255,255,255,0.8);
+            filter: brightness(0.9);
         }
 
         .btn-primary:disabled {

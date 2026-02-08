@@ -81,7 +81,7 @@ function renderTable(results) {
         const city = st.target_city || "";
         if (city !== currentCity) {
             currentCity = city;
-            html += `<div class="tier-sep" style="color:#fff;font-size:13px;padding:12px 20px 6px;">${city}</div>`;
+            html += `<div class="tier-sep" style="color:var(--accent-color, #71717a);font-size:13px;padding:12px 20px 6px;">${city}</div>`;
         }
 
         const r = resultMap[st.id + city] || (results ? results.find(x => x.id === st.id && x.target_city === city) : null);
@@ -180,9 +180,27 @@ function updateCityCards(results, cityAlerts) {
     }
 }
 
+function updateAccentColor(results) {
+    // Set accent color based on worst predicted PM2.5 level
+    const root = document.documentElement;
+
+    if (!results || results.length === 0) {
+        // Default neutral accent when no data
+        root.style.setProperty("--accent-color", "#71717a");
+        root.style.setProperty("--accent-text", "#fff");
+        return;
+    }
+
+    // Results are sorted by predicted PM2.5, worst first
+    const worst = results[0];
+    root.style.setProperty("--accent-color", worst.level_hex);
+    root.style.setProperty("--accent-text", worst.level_text_color);
+}
+
 function handleResults(results, label, cityAlerts) {
     lastResults = results;
     lastCityAlerts = cityAlerts || null;
+    updateAccentColor(results);
     renderTable(results);
     updateCityCards(results, cityAlerts);
     if (map) updateMapMarkers(results);

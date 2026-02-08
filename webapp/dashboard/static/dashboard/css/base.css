@@ -3,6 +3,11 @@
    Reset, layout, sidebar, navigation
    ============================================================ */
 
+:root {
+    --accent-color: #71717a;
+    --accent-text: #fff;
+}
+
 *,
 *::before,
 *::after {
@@ -95,9 +100,10 @@ body {
 .sidebar-tab:hover svg { transform: scale(1.1); }
 
 .sidebar-tab.tab-active {
-    color: #000;
-    background: #fff;
-    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+    color: var(--accent-text, #000);
+    background: var(--accent-color, #71717a);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-color, #71717a) 40%, transparent);
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .sidebar-bottom {
