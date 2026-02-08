@@ -4,30 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLEAR25 — Real-time PM2.5 Predictions for Metro Manila</title>
-    <meta name="description" content="Early warning system powered by machine learning. Get 1-hour ahead PM2.5 predictions to protect your health.">
+    <title>CLEAR25 — Wildfire Smoke Early Warning System</title>
+    <meta name="description" content="6-48 hours of advance warning before dangerous wildfire smoke arrives. Protecting Toronto, Edmonton, Montréal, and Vancouver.">
     <link rel="icon" type="image/svg+xml" href="{% static 'dashboard/favicon.svg' %}?v=2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        zinc: {
-                            850: '#1f1f23',
-                            950: '#09090b',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
@@ -36,419 +18,813 @@
             background: #09090b;
             color: #fafafa;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Animated gradient background */
-        .hero-gradient {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.3), transparent),
-                        radial-gradient(ellipse 60% 40% at 80% 50%, rgba(139, 92, 246, 0.2), transparent),
-                        radial-gradient(ellipse 50% 30% at 20% 80%, rgba(236, 72, 153, 0.15), transparent);
-            animation: gradientShift 15s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% {
-                background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.3), transparent),
-                            radial-gradient(ellipse 60% 40% at 80% 50%, rgba(139, 92, 246, 0.2), transparent),
-                            radial-gradient(ellipse 50% 30% at 20% 80%, rgba(236, 72, 153, 0.15), transparent);
-            }
-            33% {
-                background: radial-gradient(ellipse 80% 50% at 30% -10%, rgba(139, 92, 246, 0.3), transparent),
-                            radial-gradient(ellipse 60% 40% at 70% 60%, rgba(59, 130, 246, 0.2), transparent),
-                            radial-gradient(ellipse 50% 30% at 50% 90%, rgba(236, 72, 153, 0.15), transparent);
-            }
-            66% {
-                background: radial-gradient(ellipse 80% 50% at 70% -10%, rgba(236, 72, 153, 0.25), transparent),
-                            radial-gradient(ellipse 60% 40% at 20% 50%, rgba(139, 92, 246, 0.2), transparent),
-                            radial-gradient(ellipse 50% 30% at 80% 80%, rgba(59, 130, 246, 0.15), transparent);
-            }
-        }
-
-        /* Floating orbs */
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(60px);
-            animation: float 20s ease-in-out infinite;
-        }
-        .orb-1 {
-            width: 400px; height: 400px;
-            background: rgba(59, 130, 246, 0.15);
-            top: 10%; left: 10%;
-            animation-delay: 0s;
-        }
-        .orb-2 {
-            width: 300px; height: 300px;
-            background: rgba(139, 92, 246, 0.12);
-            top: 60%; right: 10%;
-            animation-delay: -5s;
-        }
-        .orb-3 {
-            width: 250px; height: 250px;
-            background: rgba(236, 72, 153, 0.1);
-            bottom: 20%; left: 30%;
-            animation-delay: -10s;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(30px, -30px) scale(1.05); }
-            50% { transform: translate(-20px, 20px) scale(0.95); }
-            75% { transform: translate(20px, 10px) scale(1.02); }
-        }
-
-        /* Grid pattern overlay */
-        .grid-pattern {
-            position: absolute;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 60px 60px;
-            mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, black 20%, transparent 70%);
-        }
-
-        /* Feature cards */
-        .feature-card {
-            background: linear-gradient(135deg, rgba(24, 24, 27, 0.8), rgba(24, 24, 27, 0.4));
-            border: 1px solid rgba(63, 63, 70, 0.5);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-        .feature-card:hover {
-            border-color: rgba(59, 130, 246, 0.5);
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 60px rgba(59, 130, 246, 0.1);
-        }
-
-        /* Stat cards */
-        .stat-card {
-            background: rgba(24, 24, 27, 0.6);
-            border: 1px solid rgba(63, 63, 70, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        /* Step cards */
-        .step-card {
-            background: linear-gradient(135deg, rgba(24, 24, 27, 0.6), rgba(24, 24, 27, 0.3));
-            border: 1px solid rgba(63, 63, 70, 0.4);
-        }
-
-        /* Buttons */
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
-            transition: all 0.2s ease;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(59, 130, 246, 0.5);
-        }
-        .btn-secondary {
-            background: rgba(39, 39, 42, 0.8);
-            border: 1px solid rgba(63, 63, 70, 0.8);
-            transition: all 0.2s ease;
-        }
-        .btn-secondary:hover {
-            background: rgba(63, 63, 70, 0.8);
-            border-color: rgba(82, 82, 91, 0.8);
-        }
-
-        /* Scroll reveal animation */
-        .reveal {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .reveal.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Connector line for steps */
-        .step-connector {
-            position: absolute;
-            top: 50%;
-            left: 100%;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.3), transparent);
-        }
-
-        /* Navbar blur */
-        .nav-blur {
-            background: rgba(9, 9, 11, 0.8);
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(9, 9, 11, 0.85);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(39, 39, 42, 0.5);
         }
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #fafafa;
+        }
+        .nav-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+        }
+        .nav-title {
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: -0.02em;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        .nav-link {
+            font-size: 14px;
+            font-weight: 500;
+            color: #a1a1aa;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .nav-link:hover { color: #fafafa; }
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .nav-cta:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        .nav-cta svg {
+            width: 16px;
+            height: 16px;
+        }
 
-        /* Footer gradient */
-        .footer-gradient {
-            background: linear-gradient(to top, rgba(9, 9, 11, 1), rgba(9, 9, 11, 0.8));
+        /* Hero */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 24px 80px;
+            overflow: hidden;
+        }
+
+        /* Canada Map Background */
+        .hero-map {
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero-map svg {
+            width: 140%;
+            max-width: 1800px;
+            height: auto;
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 0.5;
+        }
+
+        /* Gradient overlay */
+        .hero-gradient {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 50% at 50% 20%, rgba(239, 68, 68, 0.12), transparent),
+                radial-gradient(ellipse 50% 40% at 30% 70%, rgba(251, 146, 60, 0.08), transparent),
+                radial-gradient(ellipse 40% 30% at 80% 60%, rgba(59, 130, 246, 0.1), transparent);
+            animation: gradientPulse 12s ease-in-out infinite;
+        }
+        @keyframes gradientPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Smoke particles */
+        .smoke-particle {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(251, 146, 60, 0.15), transparent 70%);
+            filter: blur(40px);
+            animation: smokeFloat 20s ease-in-out infinite;
+        }
+        .smoke-1 { top: 20%; left: 15%; animation-delay: 0s; }
+        .smoke-2 { top: 60%; right: 20%; animation-delay: -7s; width: 150px; height: 150px; }
+        .smoke-3 { bottom: 30%; left: 40%; animation-delay: -14s; width: 180px; height: 180px; }
+        @keyframes smokeFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+            25% { transform: translate(30px, -20px) scale(1.1); opacity: 0.8; }
+            50% { transform: translate(-20px, 30px) scale(0.9); opacity: 0.5; }
+            75% { transform: translate(20px, 10px) scale(1.05); opacity: 0.7; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 800px;
+            text-align: center;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #f87171;
+            margin-bottom: 32px;
+        }
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .hero-title {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+        .hero-title-gradient {
+            background: linear-gradient(135deg, #fb923c, #ef4444, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-subtitle {
+            font-size: 18px;
+            color: #a1a1aa;
+            line-height: 1.7;
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            color: #fafafa;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #27272a;
+            border-color: #52525b;
+        }
+
+        /* Cities strip */
+        .cities {
+            position: relative;
+            z-index: 10;
+            margin-top: 80px;
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            flex-wrap: wrap;
+        }
+        .city-item {
+            text-align: center;
+        }
+        .city-name {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #71717a;
+            margin-bottom: 4px;
+        }
+        .city-status {
+            font-size: 12px;
+            color: #52525b;
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 80px 24px;
+            background: #0c0c0e;
+            border-top: 1px solid #1f1f23;
+            border-bottom: 1px solid #1f1f23;
+        }
+        .stats-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 24px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+        }
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #71717a;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 24px;
+        }
+        .section-header {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 60px;
+        }
+        .section-title {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+        .section-subtitle {
+            font-size: 16px;
+            color: #a1a1aa;
+            line-height: 1.6;
+        }
+        .features-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .feature-card {
+            padding: 32px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            transition: all 0.2s;
+        }
+        .feature-card:hover {
+            border-color: #3f3f46;
+            transform: translateY(-4px);
+        }
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: #3b82f6;
+        }
+        .feature-icon.orange { background: rgba(251, 146, 60, 0.1); border-color: rgba(251, 146, 60, 0.2); }
+        .feature-icon.orange svg { stroke: #fb923c; }
+        .feature-icon.green { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.2); }
+        .feature-icon.green svg { stroke: #22c55e; }
+        .feature-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: #a1a1aa;
+            line-height: 1.7;
+        }
+
+        /* How it works */
+        .how-it-works {
+            padding: 100px 24px;
+            background: #0c0c0e;
+            border-top: 1px solid #1f1f23;
+        }
+        .steps-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        .step-card {
+            text-align: center;
+            padding: 28px 20px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            position: relative;
+        }
+        .step-num {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 auto 16px;
+        }
+        .step-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .step-desc {
+            font-size: 13px;
+            color: #71717a;
+            line-height: 1.5;
+        }
+
+        /* Alert levels */
+        .alerts {
+            padding: 100px 24px;
+        }
+        .alerts-grid {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+        .alert-card {
+            text-align: center;
+            padding: 20px 12px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+        }
+        .alert-low { background: rgba(168, 213, 160, 0.1); border-color: rgba(168, 213, 160, 0.3); }
+        .alert-mod { background: rgba(210, 204, 154, 0.1); border-color: rgba(210, 204, 154, 0.3); }
+        .alert-high { background: rgba(240, 191, 160, 0.1); border-color: rgba(240, 191, 160, 0.3); }
+        .alert-vhigh { background: rgba(232, 152, 138, 0.1); border-color: rgba(232, 152, 138, 0.3); }
+        .alert-extreme { background: rgba(230, 92, 80, 0.1); border-color: rgba(230, 92, 80, 0.3); }
+        .alert-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+        .alert-low .alert-badge { background: #A8D5A0; color: #000; }
+        .alert-mod .alert-badge { background: #D2CC9A; color: #000; }
+        .alert-high .alert-badge { background: #F0BFA0; color: #000; }
+        .alert-vhigh .alert-badge { background: #E8988A; color: #fff; }
+        .alert-extreme .alert-badge { background: #E65C50; color: #fff; }
+        .alert-range {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: #d4d4d8;
+        }
+
+        /* CTA Section */
+        .cta {
+            padding: 100px 24px;
+            background: #0c0c0e;
+            border-top: 1px solid #1f1f23;
+        }
+        .cta-box {
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.02));
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 24px;
+        }
+        .cta-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        .cta-subtitle {
+            font-size: 16px;
+            color: #a1a1aa;
+            margin-bottom: 32px;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 40px 24px;
+            border-top: 1px solid #1f1f23;
+        }
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .footer-logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+        .footer-name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+        .footer-tagline {
+            font-size: 12px;
+            color: #52525b;
+        }
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+        .footer-link {
+            font-size: 13px;
+            color: #71717a;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .footer-link:hover { color: #fafafa; }
+        .footer-credit {
+            font-size: 12px;
+            color: #52525b;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .features-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: repeat(2, 1fr); }
+            .alerts-grid { grid-template-columns: repeat(3, 1fr); }
+            .nav-links { display: none; }
+        }
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .alerts-grid { grid-template-columns: repeat(2, 1fr); }
+            .cities { gap: 24px; }
+            .hero-actions { flex-direction: column; align-items: center; }
+            .btn-primary, .btn-secondary { width: 100%; max-width: 280px; justify-content: center; }
+            .cta-box { padding: 40px 24px; }
+            .footer-inner { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
-<body class="antialiased">
+<body>
     <!-- Navigation -->
-    <nav class="nav-blur fixed top-0 left-0 right-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-3">
-                <img src="{% static 'dashboard/favicon.svg' %}" alt="CLEAR25" class="w-8 h-8 rounded-lg">
-                <span class="text-lg font-bold tracking-tight">CLEAR25</span>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <img src="{% static 'dashboard/favicon.svg' %}" alt="" class="nav-logo">
+                <span class="nav-title">CLEAR25</span>
             </a>
-            <div class="hidden md:flex items-center gap-8">
-                <a href="#features" class="text-sm text-zinc-400 hover:text-white transition-colors">Features</a>
-                <a href="#how-it-works" class="text-sm text-zinc-400 hover:text-white transition-colors">How it Works</a>
-                <a href="/dashboard/#tab-research" class="text-sm text-zinc-400 hover:text-white transition-colors">Research</a>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="/dashboard/#tab-research" class="nav-link">Research</a>
             </div>
-            <div class="flex items-center gap-4">
-                <a href="/accounts/google/login/?process=login" class="text-sm text-zinc-400 hover:text-white transition-colors hidden sm:block">Sign In</a>
-                <a href="/dashboard/" class="btn-primary px-5 py-2.5 rounded-lg text-sm font-semibold text-white">
-                    Open Dashboard
-                </a>
-            </div>
+            <a href="/dashboard/" class="nav-cta">
+                Open Dashboard
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </a>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+    <section class="hero">
+        <!-- Canada map background -->
+        <div class="hero-map">
+            <svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+                <!-- Simplified Canada outline -->
+                <path d="M180,340 L200,320 L220,300 L250,290 L280,285 L310,280 L340,275 L370,280 L400,290 L420,300 L440,290 L460,280 L490,275 L520,280 L550,290 L580,300 L610,290 L640,280 L670,285 L700,295 L730,300 L760,290 L790,280 L820,285 L850,300 L870,320 L880,340 L885,360 L880,380 L870,400 L850,420 L820,430 L790,435 L760,430 L730,420 L700,425 L670,435 L640,440 L610,435 L580,425 L550,420 L520,425 L490,430 L460,425 L430,415 L400,410 L370,415 L340,420 L310,425 L280,420 L250,410 L220,400 L200,380 L185,360 L180,340"/>
+                <!-- Vancouver -->
+                <circle cx="200" cy="360" r="8" fill="#3b82f6" opacity="0.8"/>
+                <!-- Edmonton -->
+                <circle cx="320" cy="320" r="8" fill="#3b82f6" opacity="0.8"/>
+                <!-- Toronto -->
+                <circle cx="620" cy="400" r="8" fill="#3b82f6" opacity="0.8"/>
+                <!-- Montreal -->
+                <circle cx="720" cy="380" r="8" fill="#3b82f6" opacity="0.8"/>
+                <!-- Connection lines -->
+                <path d="M200,360 Q400,200 620,400" stroke="#3b82f6" stroke-width="1" fill="none" opacity="0.3" stroke-dasharray="8,8"/>
+                <path d="M320,320 Q500,250 620,400" stroke="#3b82f6" stroke-width="1" fill="none" opacity="0.3" stroke-dasharray="8,8"/>
+                <path d="M620,400 L720,380" stroke="#3b82f6" stroke-width="1" fill="none" opacity="0.3" stroke-dasharray="8,8"/>
+            </svg>
+        </div>
+
         <div class="hero-gradient"></div>
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="grid-pattern"></div>
+        <div class="smoke-particle smoke-1"></div>
+        <div class="smoke-particle smoke-2"></div>
+        <div class="smoke-particle smoke-3"></div>
 
-        <div class="relative z-10 max-w-5xl mx-auto px-6 text-center">
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-800/50 border border-zinc-700/50 text-sm text-zinc-300 mb-8">
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                Live monitoring across Metro Manila
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="hero-badge-dot"></span>
+                Wildfire Smoke Early Warning System
             </div>
-
-            <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6">
-                Real-time PM2.5
-                <span class="block bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                    Predictions
-                </span>
+            <h1 class="hero-title">
+                Before the Sky<br>
+                <span class="hero-title-gradient">Turns Orange</span>
             </h1>
-
-            <p class="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                Early warning system powered by machine learning. Get 1-hour ahead predictions to protect your health and plan your outdoor activities.
+            <p class="hero-subtitle">
+                Get 6-48 hours of advance warning before dangerous wildfire smoke arrives.
+                Powered by 218 monitoring stations and 20 years of air quality data.
             </p>
-
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="/dashboard/" class="btn-primary px-8 py-4 rounded-xl text-base font-semibold text-white flex items-center gap-2">
-                    <span>Open Dashboard</span>
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            <div class="hero-actions">
+                <a href="/dashboard/" class="btn-primary">
+                    Open Dashboard
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                 </a>
-                <a href="/dashboard/#tab-research" class="btn-secondary px-8 py-4 rounded-xl text-base font-semibold text-white flex items-center gap-2">
-                    <span>View Research</span>
+                <a href="/dashboard/#tab-research" class="btn-secondary">
+                    View Research
                 </a>
             </div>
 
-            <!-- Scroll indicator -->
-            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce">
-                <svg class="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                </svg>
+            <!-- Cities -->
+            <div class="cities">
+                <div class="city-item">
+                    <div class="city-name">Toronto</div>
+                    <div class="city-status">100% Detection</div>
+                </div>
+                <div class="city-item">
+                    <div class="city-name">Edmonton</div>
+                    <div class="city-status">90% Detection</div>
+                </div>
+                <div class="city-item">
+                    <div class="city-name">Montreal</div>
+                    <div class="city-status">100% Detection</div>
+                </div>
+                <div class="city-item">
+                    <div class="city-name">Vancouver</div>
+                    <div class="city-status">100% Detection</div>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- Stats Section -->
-    <section class="py-20 relative">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 reveal">
-                <div class="stat-card rounded-2xl p-6 text-center">
-                    <div class="text-4xl font-bold text-blue-400 mb-2">50+</div>
-                    <div class="text-sm text-zinc-500">Monitoring Stations</div>
-                </div>
-                <div class="stat-card rounded-2xl p-6 text-center">
-                    <div class="text-4xl font-bold text-purple-400 mb-2">4</div>
-                    <div class="text-sm text-zinc-500">Cities Covered</div>
-                </div>
-                <div class="stat-card rounded-2xl p-6 text-center">
-                    <div class="text-4xl font-bold text-pink-400 mb-2">1hr</div>
-                    <div class="text-sm text-zinc-500">Prediction Window</div>
-                </div>
-                <div class="stat-card rounded-2xl p-6 text-center">
-                    <div class="text-4xl font-bold text-green-400 mb-2">24/7</div>
-                    <div class="text-sm text-zinc-500">Live Monitoring</div>
-                </div>
+    <section class="stats">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">97.9%</div>
+                <div class="stat-label">Detection Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">0%</div>
+                <div class="stat-label">False Alarms</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">6-48hr</div>
+                <div class="stat-label">Lead Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">218</div>
+                <div class="stat-label">Stations</div>
             </div>
         </div>
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="py-24 relative">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center mb-16 reveal">
-                <h2 class="text-3xl sm:text-4xl font-bold mb-4">Powered by Machine Learning</h2>
-                <p class="text-zinc-400 max-w-2xl mx-auto">
-                    Our system combines real-time sensor data with advanced ML models to provide accurate air quality predictions.
-                </p>
-            </div>
-
-            <div class="grid md:grid-cols-3 gap-6 reveal">
-                <!-- Feature 1 -->
-                <div class="feature-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6">
-                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Predictive AI</h3>
-                    <p class="text-zinc-400 leading-relaxed">
-                        Machine learning models analyze historical patterns and current conditions to forecast PM2.5 levels 1 hour ahead with high accuracy.
-                    </p>
-                </div>
-
-                <!-- Feature 2 -->
-                <div class="feature-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6">
-                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Live Monitoring</h3>
-                    <p class="text-zinc-400 leading-relaxed">
-                        Real-time data from 50+ monitoring stations across Metro Manila, updated every hour to give you the latest air quality readings.
-                    </p>
-                </div>
-
-                <!-- Feature 3 -->
-                <div class="feature-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center mb-6">
-                        <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold mb-3">Health Alerts</h3>
-                    <p class="text-zinc-400 leading-relaxed">
-                        Color-coded warnings based on WHO air quality guidelines help you quickly understand the health implications and take action.
-                    </p>
-                </div>
-            </div>
+    <section id="features" class="features">
+        <div class="section-header">
+            <h2 class="section-title">How C.L.E.A.R. Works</h2>
+            <p class="section-subtitle">
+                Repurposing existing NAPS monitoring stations to detect approaching wildfire smoke before it arrives.
+            </p>
         </div>
-    </section>
-
-    <!-- How It Works Section -->
-    <section id="how-it-works" class="py-24 relative overflow-hidden">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="text-center mb-16 reveal">
-                <h2 class="text-3xl sm:text-4xl font-bold mb-4">How It Works</h2>
-                <p class="text-zinc-400 max-w-2xl mx-auto">
-                    From data collection to actionable predictions in real-time.
-                </p>
-            </div>
-
-            <div class="grid md:grid-cols-4 gap-6 reveal">
-                <!-- Step 1 -->
-                <div class="relative">
-                    <div class="step-card rounded-2xl p-6 text-center">
-                        <div class="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4 text-blue-400 font-bold">1</div>
-                        <h3 class="font-bold mb-2">Data Collection</h3>
-                        <p class="text-sm text-zinc-500">Real-time PM2.5 readings from IQAir monitoring stations</p>
-                    </div>
-                    <div class="step-connector hidden md:block"></div>
-                </div>
-
-                <!-- Step 2 -->
-                <div class="relative">
-                    <div class="step-card rounded-2xl p-6 text-center">
-                        <div class="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center mx-auto mb-4 text-purple-400 font-bold">2</div>
-                        <h3 class="font-bold mb-2">ML Processing</h3>
-                        <p class="text-sm text-zinc-500">XGBoost models analyze patterns and environmental factors</p>
-                    </div>
-                    <div class="step-connector hidden md:block"></div>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="relative">
-                    <div class="step-card rounded-2xl p-6 text-center">
-                        <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-500/30 flex items-center justify-center mx-auto mb-4 text-pink-400 font-bold">3</div>
-                        <h3 class="font-bold mb-2">Prediction</h3>
-                        <p class="text-sm text-zinc-500">1-hour ahead forecasts generated for each station</p>
-                    </div>
-                    <div class="step-connector hidden md:block"></div>
-                </div>
-
-                <!-- Step 4 -->
-                <div class="relative">
-                    <div class="step-card rounded-2xl p-6 text-center">
-                        <div class="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-4 text-green-400 font-bold">4</div>
-                        <h3 class="font-bold mb-2">Alert</h3>
-                        <p class="text-sm text-zinc-500">Health-based warnings help you make informed decisions</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="py-24 relative">
-        <div class="max-w-4xl mx-auto px-6 text-center reveal">
-            <div class="feature-card rounded-3xl p-12 md:p-16">
-                <h2 class="text-3xl sm:text-4xl font-bold mb-4">Start Monitoring Today</h2>
-                <p class="text-zinc-400 max-w-xl mx-auto mb-8">
-                    Get real-time air quality data and predictions for Metro Manila. Free to use, no account required.
-                </p>
-                <a href="/dashboard/" class="btn-primary inline-flex items-center gap-2 px-8 py-4 rounded-xl text-base font-semibold text-white">
-                    <span>Open Dashboard</span>
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/>
+                        <circle cx="12" cy="10" r="3"/>
                     </svg>
-                </a>
+                </div>
+                <h3 class="feature-title">Upstream Detection</h3>
+                <p class="feature-desc">
+                    Monitoring stations 100-600km away detect smoke plumes hours before they reach major cities.
+                </p>
             </div>
+            <div class="feature-card">
+                <div class="feature-icon orange">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                </div>
+                <h3 class="feature-title">Regression Analysis</h3>
+                <p class="feature-desc">
+                    20 years of NAPS data used to build correlation models between remote stations and city PM2.5 levels.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                </div>
+                <h3 class="feature-title">Real-time Alerts</h3>
+                <p class="feature-desc">
+                    Color-coded health warnings triggered automatically when smoke is detected approaching.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="section-header">
+            <h2 class="section-title">From Data to Warning</h2>
+            <p class="section-subtitle">
+                A four-step process that gives you time to prepare.
+            </p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <h3 class="step-title">Data Collection</h3>
+                <p class="step-desc">PM2.5 readings from NAPS and U.S. EPA stations across North America</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <h3 class="step-title">Pattern Analysis</h3>
+                <p class="step-desc">Correlation analysis identifies stations that predict city PM2.5 levels</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <h3 class="step-title">Threshold Check</h3>
+                <p class="step-desc">When upstream stations exceed thresholds, alerts are triggered</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <h3 class="step-title">Early Warning</h3>
+                <p class="step-desc">6-48 hours of lead time based on station distance and tier</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Alert Levels -->
+    <section class="alerts">
+        <div class="section-header">
+            <h2 class="section-title">Alert Levels</h2>
+            <p class="section-subtitle">
+                Color-coded warnings based on predicted PM2.5 concentrations.
+            </p>
+        </div>
+        <div class="alerts-grid">
+            <div class="alert-card alert-low">
+                <span class="alert-badge">LOW</span>
+                <div class="alert-range">&lt; 20 µg/m³</div>
+            </div>
+            <div class="alert-card alert-mod">
+                <span class="alert-badge">MODERATE</span>
+                <div class="alert-range">21-60 µg/m³</div>
+            </div>
+            <div class="alert-card alert-high">
+                <span class="alert-badge">HIGH</span>
+                <div class="alert-range">61-80 µg/m³</div>
+            </div>
+            <div class="alert-card alert-vhigh">
+                <span class="alert-badge">VERY HIGH</span>
+                <div class="alert-range">81-120 µg/m³</div>
+            </div>
+            <div class="alert-card alert-extreme">
+                <span class="alert-badge">EXTREME</span>
+                <div class="alert-range">&gt; 120 µg/m³</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="cta-box">
+            <h2 class="cta-title">Get Early Smoke Warnings</h2>
+            <p class="cta-subtitle">
+                Access real-time predictions for Toronto, Edmonton, Montréal, and Vancouver.
+            </p>
+            <a href="/dashboard/" class="btn-primary">
+                Open Dashboard
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </a>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="footer-gradient py-16 border-t border-zinc-800/50">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-8">
-                <div class="flex items-center gap-3">
-                    <img src="{% static 'dashboard/favicon.svg' %}" alt="CLEAR25" class="w-8 h-8 rounded-lg">
-                    <div>
-                        <div class="font-bold">CLEAR25</div>
-                        <div class="text-sm text-zinc-500">PM2.5 Early Warning System</div>
-                    </div>
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="{% static 'dashboard/favicon.svg' %}" alt="" class="footer-logo">
+                <div>
+                    <div class="footer-name">CLEAR25</div>
+                    <div class="footer-tagline">Canadian Lead-time Early Air Response</div>
                 </div>
-
-                <div class="flex items-center gap-8 text-sm text-zinc-400">
-                    <a href="/dashboard/" class="hover:text-white transition-colors">Dashboard</a>
-                    <a href="/dashboard/#tab-research" class="hover:text-white transition-colors">Research</a>
-                    <a href="/dashboard/#tab-feedback" class="hover:text-white transition-colors">Feedback</a>
-                </div>
-
-                <div class="text-sm text-zinc-500 text-center md:text-right">
-                    Built for PSHS-MC Science Fair 2025
-                </div>
+            </div>
+            <div class="footer-links">
+                <a href="/dashboard/" class="footer-link">Dashboard</a>
+                <a href="/dashboard/#tab-research" class="footer-link">Research</a>
+                <a href="/dashboard/#tab-feedback" class="footer-link">Feedback</a>
+            </div>
+            <div class="footer-credit">
+                PSHS-MC Science Fair 2025
             </div>
         </div>
     </footer>
-
-    <!-- Scroll reveal script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const reveals = document.querySelectorAll('.reveal');
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
-            });
-
-            reveals.forEach(el => observer.observe(el));
-        });
-    </script>
 </body>
 </html>
