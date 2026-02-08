@@ -35,6 +35,9 @@ RULE1_THRESHOLD = 55    # Single station >= 55 → immediate alert
 RULE2_PRIMARY = 35      # Dual-station: Station A sustained threshold
 RULE2_SECONDARY = 25    # Dual-station: Station B corroboration threshold
 
+# Station IDs to exclude (too far from target city to be useful)
+EXCLUDED_STATION_IDS = {"50308", "50314"}
+
 CITIES = {
     "Toronto":   {"label": "Toronto",   "lat": 43.7479, "lon": -79.2741},
     "Montreal":  {"label": "Montréal",  "lat": 45.5027, "lon": -73.6639},
@@ -120,10 +123,14 @@ def load_stations(city_key):
         sid = str(row[col_id]).strip()
         if not sid:
             continue
+        # Skip excluded stations
+        if sid in EXCLUDED_STATION_IDS:
+            continue
+        city_name = str(row[col_city] or "")
         try:
             stations.append({
                 "id": sid,
-                "city_name": str(row[col_city] or ""),
+                "city_name": city_name,
                 "distance": float(row[col_dist]) if row[col_dist] else 0,
                 "direction": str(row[col_dir] or ""),
                 "tier": int(str(row[col_tier]).replace("Tier", "").strip()) if row[col_tier] else 1,
