@@ -9,11 +9,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}">
+    <link rel="stylesheet" href="{% static 'dashboard/style.css' %}?v=20">
     <style>
         .settings-page {
             min-height: 100vh;
-            background: #09090b;
+            background: #000;
             padding: 40px 24px;
         }
 
@@ -35,7 +35,7 @@
         }
 
         .settings-back:hover {
-            color: #fafafa;
+            color: #fff;
         }
 
         .settings-header {
@@ -46,7 +46,7 @@
             font-size: 28px;
             font-weight: 800;
             letter-spacing: -0.03em;
-            color: #fafafa;
+            color: #fff;
             margin-bottom: 8px;
         }
 
@@ -56,8 +56,8 @@
         }
 
         .settings-card {
-            background: #18181b;
-            border: 1px solid #27272a;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 14px;
             padding: 24px;
             margin-bottom: 20px;
@@ -66,7 +66,7 @@
         .settings-card h2 {
             font-size: 16px;
             font-weight: 700;
-            color: #fafafa;
+            color: #fff;
             margin-bottom: 16px;
         }
 
@@ -99,10 +99,10 @@
         .form-group input {
             width: 100%;
             padding: 10px 14px;
-            background: #09090b;
-            border: 1px solid #3f3f46;
+            background: #000;
+            border: 1px solid rgba(255,255,255,0.15);
             border-radius: 8px;
-            color: #fafafa;
+            color: #fff;
             font-size: 14px;
             font-family: inherit;
             transition: border-color 0.15s;
@@ -164,12 +164,12 @@
         }
 
         .btn-ghost {
-            background: #27272a;
-            color: #fafafa;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
         }
 
         .btn-ghost:hover {
-            background: #3f3f46;
+            background: rgba(255,255,255,0.15);
         }
 
         .success-msg, .error-msg {
@@ -219,8 +219,8 @@
         }
 
         .delete-modal-box {
-            background: #18181b;
-            border: 1px solid #27272a;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 14px;
             padding: 28px;
             max-width: 420px;
@@ -243,7 +243,7 @@
         .delete-modal-box h3 {
             font-size: 18px;
             font-weight: 700;
-            color: #fafafa;
+            color: #fff;
             margin-bottom: 12px;
         }
 
